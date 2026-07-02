@@ -41,6 +41,14 @@ local BURST_RADIUS = 32
 -- of at most this each.
 local MAX_CLUSTER_POP = 1000
 
+-- Tick-local cache for swarm.fold(): maps "kind:tier:cellx:celly" -> cluster entity.
+-- Eliminates redundant find_entities_filtered calls during a corpse-spoilage burst,
+-- where many corpses at similar positions all try to fold into the same cluster in
+-- one tick. Grid cell size matches the merge radius so nearby positions share a cell.
+local fold_cache = {}
+local fold_cache_tick = -1
+local FOLD_CELL = 8
+
 -- Reverse of tiers.INDIVIDUAL: individual-zombie prototype name -> tier. Used by
 -- the reanimation handler to recognise OUR hatched zombies and recover their tier.
 local INDIVIDUAL_TO_TIER = {}
@@ -339,6 +347,36 @@ function swarm.fold(surface, pos, count, tier, force, shambler_count, kind, hord
 
   local z = state()
 
+  -- Invalidate the per-tick cache at the start of each new tick.
+  local tick = game.tick
+  if fold_cache_tick ~= tick then
+    fold_cache = {}
+    fold_cache_tick = tick
+  end
+
+  -- During a corpse-spoilage burst many corpses spoil in the same tick, each
+  -- calling fold() at nearly the same position. Check the tick-local cache first
+  -- so we merge into the already-chosen cluster for this grid cell without
+  -- re-running find_entities_filtered for every single spoiled corpse.
+  local cell_x = math.floor(pos.x / FOLD_CELL)
+  local cell_y = math.floor(pos.y / FOLD_CELL)
+  local cache_key = kind .. ":" .. tier .. ":" .. cell_x .. ":" .. cell_y
+
+  local cached = fold_cache[cache_key]
+  if cached and cached.valid then
+    local rec = z.swarm[cached.unit_number]
+    if rec then
+      rec.pop = rec.pop + count
+      rec.shamblers = math.min((rec.shamblers or 0) + shambler_count, rec.pop)
+      if horde_member then rec.horde_member = true; register_horde_unit(cached) end
+      cached.health = pop_health(cached, rec.pop, tier)
+      update_label(rec)
+      return cached
+    end
+    -- Cached entity lost its swarm record (destroyed mid-tick): fall through.
+    fold_cache[cache_key] = nil
+  end
+
   -- Merge into a nearby existing cluster of the SAME kind+tier if one is tracked.
   -- Match BOTH the day and night forms of that kind so a night-time swarm still merges.
   local nearby = surface.find_entities_filtered {
@@ -353,6 +391,7 @@ function swarm.fold(surface, pos, count, tier, force, shambler_count, kind, hord
         if horde_member then rec.horde_member = true; register_horde_unit(unit) end
         unit.health = pop_health(unit, rec.pop, tier)
         update_label(rec)
+        fold_cache[cache_key] = unit
         return unit
       end
     end
@@ -369,6 +408,9 @@ function swarm.fold(surface, pos, count, tier, force, shambler_count, kind, hord
     last = create_cluster(surface, pos, pop, tier, force, nil, sh, kind, horde_member) or last
     remainder = remainder - pop
   end
+  -- Cache the created cluster so subsequent folds in this cell merge into it
+  -- rather than creating more clusters.
+  if last then fold_cache[cache_key] = last end
   return last
 end
 
