@@ -11,6 +11,7 @@ Turrets that level up based on kills, with a rank insignia overlay and per-rank 
 
 **Changes from original:**
 - Ported to Factorio 2.0/2.1: renamed `global` to `storage`, updated recipe ingredient format, removed deprecated `hr_version` sprite definitions and `icon_mipmaps`, fixed `on_player_joined_game` missing `defines.events` prefix, removed stale `landmine_on_gui_click` reference that was silently breaking GUI click handling
+- Fixed flame (flamethrower) turrets not receiving hero rank variants: `is_unkown_nesw()` only covered `ammo-turret` and `electric-turret`; Factorio 2.x flamethrower turrets use `graphics_set` instead of the legacy NESW `base_picture` format, so they were silently skipped and never appeared in the Factoriopedia. Adding `fluid-turret` to the guard lets them go through the badge-overlay path like other turrets
 
 ---
 
@@ -58,6 +59,8 @@ Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infecti
 - Extensive configuration options: horde size, active zombie cap, building infection, post-repair immunity window, player infection, night speedup, corpse reanimation, bot corpse collection, pollution cost per zombie, nest spawn rate, base expansion rate, and horde event intensity/frequency
 - Fixed mod failing to load due to asset path prefix casing (`__zomtorio__` → `__Zomtorio__`)
 - Fixed contagion spreading sluggishly along belts when only a single item was in transit
+- Performance: added a tick-local cache to `swarm.fold()` so that during a corpse-spoilage burst (many corpses expiring in the same tick), the `find_entities_filtered` spatial query is only issued once per 8×8 grid cell per tick instead of once per corpse — eliminating the main cause of 5–20 second lag spikes after large zombie fights
+- Fixed horde and night-trickle zombies spawning on water tiles: added a `WATER_TILES` name lookup (covering all vanilla water variants and `out-of-map`) checked before spawning in both `is_safe_spawn()` (night trickle) and `spawn_horde()` (directional horde wall columns)
 
 ---
 
