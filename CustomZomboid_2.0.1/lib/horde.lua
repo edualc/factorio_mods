@@ -285,11 +285,21 @@ local function ring_point(pos, tick, salt)
   return { x = pos.x + math.cos(angle) * r, y = pos.y + math.sin(angle) * r }
 end
 
---- True if the night trickle should NOT spawn at `pos`: the tile is paved
---- concrete or a powered lamp is shining within LAMP_BLOCK_RADIUS.
+--- True if `pos` is on a tile zombies can't walk on (water, void, out-of-map).
+--- Uses walkable_speed_modifier: 0 means impassable (water/void), >0 means land.
+local function is_water_tile(surface, pos)
+  local tile = surface.get_tile(pos)
+  if not tile then return true end
+  return (tile.prototype.walkable_speed_modifier or 1) <= 0
+end
+
+--- True if the night trickle should NOT spawn at `pos`: the tile is water,
+--- paved concrete, or a powered lamp is shining within LAMP_BLOCK_RADIUS.
 local function is_safe_spawn(surface, pos)
   local tile = surface.get_tile(pos)
-  if tile and SAFE_TILES[tile.name] then return true end
+  if not tile then return true end
+  if (tile.prototype.walkable_speed_modifier or 1) <= 0 then return true end  -- water/void
+  if SAFE_TILES[tile.name] then return true end
   local lamps = surface.find_entities_filtered {
     type = "lamp", position = pos, radius = LAMP_BLOCK_RADIUS, limit = 1,
   }
@@ -429,6 +439,7 @@ local function spawn_horde(surface, s, count, tier, tick)
   local cols = wall_columns(s, tick)
   local per = math.max(1, math.floor(count / #cols))
   for _, c in ipairs(cols) do
+    if is_water_tile(surface, c.pos) then goto continue end
     -- Spawn WITHOUT a per-unit command (nil); the group owns movement. horde_member
     -- = true so the warning can track this horde's live population.
     local members = swarm.spawn(surface, c.pos, per, tier, util.ENEMY_FORCE, nil, nil, true) or {}
@@ -454,6 +465,7 @@ local function spawn_horde(surface, s, count, tier, tick)
         if e and e.valid then pcall(function() e.commandable.set_command(cmd) end) end
       end
     end
+    ::continue::
   end
 end
 
