@@ -137,6 +137,18 @@ local SAFE_TILES = {
   ["refined-hazard-concrete"] = true,
 }
 
+-- Tiles zombies cannot stand on. Name-based to stay compatible with Factorio 2.x
+-- (LuaTilePrototype has no walkable_speed_modifier in 2.x).
+local WATER_TILES = {
+  ["water"]           = true,
+  ["deepwater"]       = true,
+  ["water-green"]     = true,
+  ["deepwater-green"] = true,
+  ["water-shallow"]   = true,
+  ["water-mud"]       = true,
+  ["out-of-map"]      = true,
+}
+
 -- A powered lamp within this radius of the spawn point suppresses the trickle.
 -- Vanilla lamps illuminate ~10 tiles; 12 gives a small overlap so coverage is solid.
 local LAMP_BLOCK_RADIUS = 12
@@ -286,11 +298,9 @@ local function ring_point(pos, tick, salt)
 end
 
 --- True if `pos` is on a tile zombies can't walk on (water, void, out-of-map).
---- Uses walkable_speed_modifier: 0 means impassable (water/void), >0 means land.
 local function is_water_tile(surface, pos)
   local tile = surface.get_tile(pos)
-  if not tile then return true end
-  return (tile.prototype.walkable_speed_modifier or 1) <= 0
+  return tile ~= nil and WATER_TILES[tile.name] == true
 end
 
 --- True if the night trickle should NOT spawn at `pos`: the tile is water,
@@ -298,7 +308,7 @@ end
 local function is_safe_spawn(surface, pos)
   local tile = surface.get_tile(pos)
   if not tile then return true end
-  if (tile.prototype.walkable_speed_modifier or 1) <= 0 then return true end  -- water/void
+  if WATER_TILES[tile.name] then return true end
   if SAFE_TILES[tile.name] then return true end
   local lamps = surface.find_entities_filtered {
     type = "lamp", position = pos, radius = LAMP_BLOCK_RADIUS, limit = 1,
