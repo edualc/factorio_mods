@@ -35,7 +35,7 @@ multipliers["fluid-turret"] = settings.startup["heroturrets-setting-fluid-turret
 multipliers["electric-turret"] = settings.startup["heroturrets-setting-electric-turret-kill-multiplier"].value
 multipliers["artillery-turret"] = settings.startup["heroturrets-setting-artillery-turret-kill-multiplier"].value
 
-local local_replace_turret = function(entity,recipe)	
+local local_replace_turret = function(entity,recipe)
 	local s = entity.surface
 	local p = entity.position
 	local f = entity.force
@@ -66,7 +66,7 @@ local local_replace_turret = function(entity,recipe)
 
 	local new_entity = s.create_entity{name=recipe.name, position=p, force = f, direction = d, orientation = o, raise_built = true}
 	if new_entity == nil then return end
-	new_entity.health = h
+	new_entity.health = new_entity.max_health
 	new_entity.kills = k
 	new_entity.damage_dealt = dd
 	local inv = new_entity.get_inventory(defines.inventory.turret_ammo)
