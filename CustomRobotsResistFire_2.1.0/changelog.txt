@@ -1,0 +1,20 @@
+---------------------------------------------------------------------------------------------------
+Version: 2.1.0
+Date: 2026-07-02
+  Changes:
+    - Forked as CustomRobotsResistFire, detached from the mod portal.
+    - Changed fire resistance from 95% to 100% (true immunity).
+    - Extended fire immunity to belts: transport-belt, underground-belt, splitter, linked-belt, loader, loader-1x1.
+    - Refactored repeated resistance logic into a helper function.
+
+---------------------------------------------------------------------------------------------------
+Version: 2.1.0
+Date: 2026-06-24
+  Changes:
+    - Updated to 2.1.
+---------------------------------------------------------------------------------------------------
+Version: 1.0.0
+Date: 2025-10-28
+  Added:
+    - Initial commit
+---------------------------------------------------------------------------------------------------

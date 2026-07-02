@@ -69,6 +69,18 @@ Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infecti
 
 ---
 
+### CustomRobotsResistFire `2.1.0`
+Makes all robots and belts completely immune to fire damage.
+
+**Original mod:** [RobotsResistFire](https://mods.factorio.com/mod/RobotsResistFire) by **Gerkiz**
+
+**Changes from original:**
+- Increased fire resistance from 95% to 100% (true immunity instead of near-immunity)
+- Extended fire immunity to belts: transport-belt, underground-belt, splitter, linked-belt, loader, loader-1x1 — all tiers covered
+- Refactored repeated resistance logic into a helper function
+
+---
+
 ## Credits
 
 All original mods and their concepts belong to their respective authors. These forks exist solely for personal use to bring the mods up to date with Factorio 2.1 and to add quality-of-life changes.
