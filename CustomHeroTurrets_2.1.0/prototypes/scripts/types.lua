@@ -73,7 +73,7 @@ local is_unkown_nesw = function(entity)
     if box == nil then box = entity.selection_box end
     if box == nil then box = entity.collision_box end
 
-    if (entity.type == "ammo-turret" or entity.type == "electric-turret") and entity.base_picture == nil and box ~= nil then   
+    if (entity.type == "ammo-turret" or entity.type == "electric-turret" or entity.type == "fluid-turret") and entity.base_picture == nil and box ~= nil then
         return true
     end
     return false
