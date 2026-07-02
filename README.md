@@ -12,6 +12,7 @@ Turrets that level up based on kills, with a rank insignia overlay and per-rank 
 **Changes from original:**
 - Ported to Factorio 2.0/2.1: renamed `global` to `storage`, updated recipe ingredient format, removed deprecated `hr_version` sprite definitions and `icon_mipmaps`, fixed `on_player_joined_game` missing `defines.events` prefix, removed stale `landmine_on_gui_click` reference that was silently breaking GUI click handling
 - Fixed flame (flamethrower) turrets not receiving hero rank variants: `is_unkown_nesw()` only covered `ammo-turret` and `electric-turret`; Factorio 2.x flamethrower turrets use `graphics_set` instead of the legacy NESW `base_picture` format, so they were silently skipped and never appeared in the Factoriopedia. Adding `fluid-turret` to the guard lets them go through the badge-overlay path like other turrets
+- Fixed turrets appearing to lose health on level-up: the old entity's raw HP was transferred directly to the new (higher max-health) entity, so a full-health turret would show e.g. 400/600 after upgrading. Turrets now restore to full HP on rank-up
 
 ---
 
@@ -66,6 +67,7 @@ Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infecti
 - Performance: factory centroid scan in `factory_reference` now excludes characters, units, item entities, resources, and corpses at the API level, avoiding a large intermediate table in megabase saves
 - Performance: character health snapshot in `process_players` uses a cached entity table (rebuilt only on player join/leave/death) instead of `find_entities_filtered` every tick, reducing per-tick cost in multiplayer or with modded NPC characters
 - Fixed horde and night-trickle zombies spawning on water tiles: added a `WATER_TILES` name lookup (covering all vanilla water variants and `out-of-map`) checked before spawning in both `is_safe_spawn()` (night trickle) and `spawn_horde()` (directional horde wall columns)
+- Fixed large hordes freezing when units cluster: each burst was creating a new unit group per column, flooding the spawn corridor with hundreds of simultaneous groups competing for the same path and deadlocking the engine's unit-group pathfinder. Groups are now reused across bursts (one per column); new members join the already-marching group instead of forming their own
 
 ---
 
