@@ -1,0 +1,259 @@
+﻿---------------------------------------------------------------------------------------------------
+Version: 2.1.0
+Date: 2026-06-30
+  Changes:
+    - Updated for Factorio 2.0/2.1 compatibility
+    - global renamed to storage (Factorio 2.0 API change)
+    - Recipe ingredients updated to new format
+    - Removed hr_version sprite definitions (deprecated in 2.0, now uses HR sprites directly)
+    - Removed icon_mipmaps (deprecated in 2.0)
+    - Fixed on_player_joined_game missing defines.events prefix
+    - Removed stale landmine_on_gui_click reference that was silently breaking gui click handling
+---------------------------------------------------------------------------------------------------
+Version: 1.1.22
+Date: 2023-09-08
+  Changes:
+    - added recommended dependencies from Howitzer Art Patch PD to improve icons/art (honk)
+---------------------------------------------------------------------------------------------------
+Version: 1.1.21
+Date: 2022-02-23
+  Changes:
+    - Compatibility for SearchlightAssault mod setting Create in updates to change if turrets are created in final fixes or updates
+---------------------------------------------------------------------------------------------------
+Version: 1.1.20
+Date: 2022-02-23
+  Changes:
+    - Obelisks-of-light first heroes attempt    
+---------------------------------------------------------------------------------------------------
+Version: 1.1.19
+Date: 2022-02-23
+  Changes:
+    - Obelisks-of-light compatibility tweaks, removed conflict, doesn't have heros but no error
+    - edit last changelog entry
+---------------------------------------------------------------------------------------------------
+Version: 1.1.18
+Date: 2022-02-23
+  Bug Fixes:
+    - same as 1.1.17 but for hr_version
+    - added animation math for 4-direction turrets
+  Changes:
+    - incompatible with Obelisks-of-light for now (Honktown, hard-stop for an error)
+---------------------------------------------------------------------------------------------------
+Version: 1.1.17
+Date: 2022-02-23
+  Bug Fixes:
+    - incorrect frame calculation for animated turrets (Honktown, thanks SacredAnarchy for reporting)
+---------------------------------------------------------------------------------------------------
+Version: 1.1.16
+  Changes:
+    - local update
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.15
+  Changes:
+    - Test flag turned off
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.14
+  Changes:
+    - Missing damage effect modifier
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.13
+  Bug Fixes:
+    - changelog fix
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.12
+  Changes:
+    - Updated Russian locale
+    - updated allow ranked ghost mod description
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.11
+  Changes:
+    - Removed minimum range reduction as advised used as a safety feature
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.10
+  Changes:
+    - Update some ammo ranges to meet max dist of ranked turret
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.09
+  Bug Fixes:
+    - prevent turrets that end with shield-dome from being created
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.08
+  Bug Fixes:
+    - Test variable was set to true
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.07
+  Bug Fixes:
+    - Artillery Turret fix
+    - Local fix
+    - Exclude se meteor stuff
+    - Added disable option for kill counter
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.06
+  Changes:
+    - Russian local thanks to Assisstent(git)
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.05
+  Bug Fixes:
+    - added can place entiry check and nil check
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.04
+  Changes:
+    - retention of damage dealt if Kill Counter is Exact
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.03
+  Bug Fixes:
+    - Exact was not working
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.01
+  Changes:
+    - 1.1.0 ready
+  Not A Bug Fixes:
+    - Update to get item from honktown
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.40
+  Not A Bug Fixes:
+    - good catch by kiwa cache function calling the local function checking it always nil
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.39
+  Bug Fixes:
+    - added clampint function to turn_after_shooting_cooldown
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.38
+  Changes:
+    - Added custom ranks
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.37
+  Bug Fixes:
+    - added addition check can be destroyed and if destroyed for replace.  edge case destroy fails
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.36
+  Changes:
+    - missed alterations in section
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.35
+  Changes:
+    - unclear bug did not show up in prior testing
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.34
+  Changes:
+    - rank by damage glendening
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.33
+  Changes:
+    - update update_ammo_turret_tech suggestion by honktown
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.32
+  Bug Fixes:
+    - added condition for surface.can_pace_entity prior to placing
+  Changes:
+    - added setting to enable or diable artillery turrets
+    - added multiplier setting to kill counts per turret type applied after rank kill modifier
+    - addes AI lore thanks BanzaiBlitz
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.31
+  Bug Fixes:
+    - item place results went missing as did minable results 
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.30
+  Bug Fixes:
+    - bad reference to name
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.29
+  Changes:
+    - compat work for rampant arsenal
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.28
+  Changes:
+    - Started testing for artillary wagons, not quite possible yet
+    - Made more compatible with K2 Turrets
+    - update kill counter
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.27
+  Changes:
+    - When ranking up turrets raise_destroy, raise_built now called
+    - Added check to allow mods creating turrets with base layers with more than one frame
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.26
+  Bug Fixes:
+    - Added nil check for fluidboxes on entity died
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.25
+  Changes:
+    - Added option to record kill counts with items mined
+    - Killed entites leave the base turret not the ranked version, setting available
+    - Updated minable to mine correct item depending on kill count setting
+    - projectile and fluid ammo buffs now increase per rank, requires tech reset or new game
+  Bug Fixes:
+    - Added local for modifier descriptions, not for other modded entites as yet
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.24
+  Changes:
+    - Added artillery
+  Bug Fixes:
+    - image layer shifting
+    - noticed issue with prepair range
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.23
+  Bug Fixes:
+    - fix expected entity type.
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.22
+  Changes:
+    - Added startup options to modify rank buff and level up
+    - Added generals
+    - Added buff to prepair range
+  Bug Fixes:
+    - laser range 0 dmg issue
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.21
+  Changes:
+    - Updated to allow fluid turrets
+    - Updated fast replace, upgrades
+    - Turrest now retain ammo and fluid
+    - Tech buffs now applied
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.2
+  Bug Fixes:
+    - check condition max_heath
+    - removed profiler
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.1
+  Changes:
+    - Initial Release
+

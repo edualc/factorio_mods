@@ -1,0 +1,11 @@
+{
+  "name": "CustomLiborio",
+  "version": "2.1.0",
+  "title": "CustomLiborio",
+  "author": "PixelWhipped",
+  "factorio_version": "2.1.0",
+  "description": "Common library for various factorio mods",
+  "dependencies": [
+    "base >= 2.1.0"
+  ]
+}

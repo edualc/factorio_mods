@@ -1,0 +1,9 @@
+{
+    "name": "CustomRPGsystem",
+    "author": "MFerrari",
+    "version": "2.1.1",
+    "title": "CustomRPGsystem",
+    "factorio_version": "2.1",
+    "dependencies": ["base >= 2.1.0"],
+    "description": "This mod adds a basic RPG system to the game (XP, level-up and skills)"
+}
