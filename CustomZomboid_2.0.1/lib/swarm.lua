@@ -41,13 +41,17 @@ local BURST_RADIUS = 32
 -- of at most this each.
 local MAX_CLUSTER_POP = 1000
 
--- Tick-local cache for swarm.fold(): maps "kind:tier:cellx:celly" -> cluster entity.
--- Eliminates redundant find_entities_filtered calls during a corpse-spoilage burst,
--- where many corpses at similar positions all try to fold into the same cluster in
--- one tick. Grid cell size matches the merge radius so nearby positions share a cell.
-local fold_cache = {}
-local fold_cache_tick = -1
-local FOLD_CELL = 8
+-- Cache for swarm.fold(): maps "kind:tier:cellx:celly" -> cluster entity.
+-- Eliminates redundant find_entities_filtered calls during corpse-spoilage bursts.
+-- Kept for FOLD_CACHE_TTL ticks so spoilage spread across many ticks (the common
+-- case with thousands of corpses) benefits from the same cache hits as a single-tick
+-- burst. Stale entries are safe: cached.valid is checked before use, and an invalid
+-- entry falls through to find_entities_filtered and refreshes the slot.
+-- Grid cell size matches the merge radius so nearby positions share a cell.
+local fold_cache      = {}
+local fold_cache_tick = -math.huge
+local FOLD_CELL       = 8
+local FOLD_CACHE_TTL  = 60
 
 -- Module-level cache for horde_population. Not persisted across loads; rebuilt on
 -- first call after load. TTL of 120 ticks means at most one full iteration per 2 s
@@ -354,17 +358,17 @@ function swarm.fold(surface, pos, count, tier, force, shambler_count, kind, hord
 
   local z = state()
 
-  -- Invalidate the per-tick cache at the start of each new tick.
+  -- Flush the cache once its TTL expires (not every tick).
   local tick = game.tick
-  if fold_cache_tick ~= tick then
+  if (tick - fold_cache_tick) >= FOLD_CACHE_TTL then
     fold_cache = {}
     fold_cache_tick = tick
   end
 
-  -- During a corpse-spoilage burst many corpses spoil in the same tick, each
-  -- calling fold() at nearly the same position. Check the tick-local cache first
-  -- so we merge into the already-chosen cluster for this grid cell without
-  -- re-running find_entities_filtered for every single spoiled corpse.
+  -- Check the cache before running find_entities_filtered. With a multi-tick TTL
+  -- the cache stays warm across the entire spoilage burst (which can span many ticks
+  -- when thousands of corpses spoil), so only the first fold per grid cell per TTL
+  -- window pays the find_entities_filtered cost.
   local cell_x = math.floor(pos.x / FOLD_CELL)
   local cell_y = math.floor(pos.y / FOLD_CELL)
   local cache_key = kind .. ":" .. tier .. ":" .. cell_x .. ":" .. cell_y
