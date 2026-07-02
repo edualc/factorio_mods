@@ -114,6 +114,11 @@ local TICK_PERIOD  = 60     -- the on_tick self-throttle
 local BURST_PERIOD = 60     -- one horde burst per second of an active event
 local SWARM_BURST_BASE = 40 -- zombies per burst at intensity 1 / evolution 0
 local SWARM_BURST_CAP  = 600
+-- Max entities actually created per tick from the pending spawn queue. Bursts are
+-- queued and drained at this rate so a large burst (600+ zombies) is spread across
+-- ~12 ticks instead of spiking one tick with hundreds of find_non_colliding_position
+-- calls — the main source of lag during large horde spawns.
+local SPAWN_PER_TICK = 50
 
 -- Night-escalation baseline (R-GEN-4): a much smaller trickle on ordinary nights
 -- (when no event is active), so nights are tenser than days but clearly below a
@@ -591,6 +596,7 @@ local function begin_active(s, surface, tick, dur, forced)
   s.warned = true
   s.debug_grouped = 0    -- count of members added to unit groups this event (test hook)
   s.active_groups = nil  -- fresh per-column groups for this event
+  s.pending_spawn = 0   -- clear any leftover queue from a previous event
 
   -- A fresh horde: forget the previous horde's members so its survivors can't
   -- inflate this horde's warning count.
@@ -623,6 +629,7 @@ local function end_active(s, surface, tick, e)
   s.active, s.active_start, s.period_end_tick, s.forced_until = false, nil, nil, nil
   s.origin, s.target = nil, nil
   s.active_groups = nil  -- release per-column group references
+  s.pending_spawn = 0   -- discard any unspawned queue remainder
   s.warned = false
   s.next_event_tick = tick + horde.event_interval_ticks(e, opt_frequency())
 end
@@ -659,19 +666,32 @@ function horde.on_runtime_setting_changed(event)
   end
 end
 
---- Per-tick entry (control.lua fans this out). Self-throttled to TICK_PERIOD.
---- Drives the horde-event state machine (R-GEN-5) and, on ordinary nights, the
---- smaller night-escalation baseline (R-GEN-4). Nauvis-only (R-SCOPE-1).
+--- Per-tick entry (control.lua fans this out). Self-throttled to TICK_PERIOD for
+--- state-machine logic, but pending horde spawns are drained every tick (up to
+--- SPAWN_PER_TICK entities) so large bursts don't spike a single tick with hundreds
+--- of find_non_colliding_position calls. Nauvis-only (R-SCOPE-1).
 function horde.on_tick(event)
-  if event.tick % TICK_PERIOD ~= 0 then return end
+  local tick = event.tick
+
+  -- Drain the pending spawn queue every tick, independent of the 60-tick throttle.
+  -- This spreads large bursts (e.g. 600 zombies) over ~12 ticks instead of one.
+  local surface = game.surfaces[util.HOME_SURFACE]
+  if surface and surface.valid and planets.is_active(surface) then
+    local s = state()
+    if s.pending_spawn and s.pending_spawn > 0 and s.origin then
+      local this_tick = math.min(s.pending_spawn, SPAWN_PER_TICK)
+      spawn_horde(surface, s, this_tick, swarm_tier(evolution(surface)), tick)
+      s.pending_spawn = s.pending_spawn - this_tick
+    end
+  end
+
+  if tick % TICK_PERIOD ~= 0 then return end
 
   -- R-GEN-4 (night escalation) is baseline pressure independent of the
   -- horde-event on/off flag (R-GEN-5); only the event branch below is gated on it.
-  local surface = game.surfaces[util.HOME_SURFACE]
   if not (surface and surface.valid and planets.is_active(surface)) then return end
 
   local s = state()
-  local tick = event.tick
   local e = evolution(surface)
   local night_now = night.is_night(surface)
 
@@ -685,12 +705,12 @@ function horde.on_tick(event)
     end
 
     if s.active then
-      -- Spawn at a greatly amplified rate from the single spawn point, marching the
-      -- horde at the factory (R-GEN-5 / R-GEN-6).
+      -- Queue a burst every BURST_PERIOD; the drain loop above spreads the actual
+      -- entity creation across multiple ticks (SPAWN_PER_TICK per tick).
       if tick % BURST_PERIOD == 0 then
         local count = math.floor(SWARM_BURST_BASE * opt_intensity() * (1 + 2 * e))
         count = clamp(count, 1, SWARM_BURST_CAP)
-        spawn_horde(surface, s, count, swarm_tier(e), tick)
+        s.pending_spawn = (s.pending_spawn or 0) + count
       end
       -- End at period_end OR at dawn — "at most one full night" (R-GEN-5). A
       -- FORCED event ignores the dawn end until its forced window elapses, so a
