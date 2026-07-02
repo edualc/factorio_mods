@@ -40,6 +40,17 @@ local util    = require("lib.util")
 
 local infection = {}
 
+-- Module-level character cache for process_players. Not persisted across loads
+-- (rebuilt on the first tick after a load). Invalidated on player join/leave/death
+-- so the per-tick path becomes a cheap table read instead of find_entities_filtered.
+local _char_cache       = {}     -- unit_number -> LuaEntity
+local _char_cache_valid = false  -- false forces a rebuild next tick
+
+--- Invalidate the character cache. Called from control.lua on player/character events.
+function infection.invalidate_char_cache()
+  _char_cache_valid = false
+end
+
 -- Our own DoT damage type — recognised so it can't re-trigger infection.
 local INFECTION_DAMAGE_TYPE = "zomtorio-infection"
 
@@ -422,16 +433,28 @@ end
 local function process_players(now)
   local ps = player_state()
 
-  -- Refresh the health snapshot for every character on every active surface so the
-  -- bite handler's "did health drop?" baseline stays current across healing and
-  -- passive regen (which fire NO damage event). Characters are few, so this scan is
-  -- cheap. The snapshot table is rebuilt each tick to drop departed characters.
-  local snap = {}
-  for _, surface in pairs(game.surfaces) do
-    if planets.is_active(surface) then  -- R-SCOPE-1
-      for _, c in pairs(surface.find_entities_filtered { type = "character" }) do
-        if c.valid and c.unit_number then snap[c.unit_number] = c.health end
+  -- Refresh the health snapshot so the bite handler's "did health drop?" baseline
+  -- stays current across healing and passive regen (which fire NO damage event).
+  -- Use a cached character table rebuilt only when characters join/leave/die
+  -- (invalidate_char_cache) to avoid a find_entities_filtered scan every tick.
+  if not _char_cache_valid then
+    _char_cache = {}
+    for _, surface in pairs(game.surfaces) do
+      if planets.is_active(surface) then  -- R-SCOPE-1
+        for _, c in pairs(surface.find_entities_filtered { type = "character" }) do
+          if c.valid and c.unit_number then _char_cache[c.unit_number] = c end
+        end
       end
+    end
+    _char_cache_valid = true
+  end
+  local snap = {}
+  for un, c in pairs(_char_cache) do
+    if c.valid then
+      snap[un] = c.health
+    else
+      _char_cache[un] = nil  -- character left without an event; prune and re-scan next tick
+      _char_cache_valid = false
     end
   end
   ps.health = snap

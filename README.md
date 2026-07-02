@@ -60,6 +60,11 @@ Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infecti
 - Fixed mod failing to load due to asset path prefix casing (`__zomtorio__` → `__Zomtorio__`)
 - Fixed contagion spreading sluggishly along belts when only a single item was in transit
 - Performance: added a tick-local cache to `swarm.fold()` so that during a corpse-spoilage burst (many corpses expiring in the same tick), the `find_entities_filtered` spatial query is only issued once per 8×8 grid cell per tick instead of once per corpse — eliminating the main cause of 5–20 second lag spikes after large zombie fights
+- Performance: night-variant sweep period raised 30→60 ticks, sweep radius reduced 48→32 tiles (~56% smaller search area), and a per-anchor swap cap of 150 units added — together these cut the worst-case entity-recreation cost by ~75% during large horde assaults at night
+- Performance: horde warning map tag is now updated in-place (`.text` / `.position` writes) instead of destroy+create every 60 ticks, eliminating repeated map-chart sync operations during active horde events
+- Performance: `horde_population()` result is cached for 120 ticks so the full iteration over the live-horde table runs at most once per 2 seconds instead of once per second, reducing cost during long high-evolution hordes with thousands of tracked units
+- Performance: factory centroid scan in `factory_reference` now excludes characters, units, item entities, resources, and corpses at the API level, avoiding a large intermediate table in megabase saves
+- Performance: character health snapshot in `process_players` uses a cached entity table (rebuilt only on player join/leave/death) instead of `find_entities_filtered` every tick, reducing per-tick cost in multiplayer or with modded NPC characters
 - Fixed horde and night-trickle zombies spawning on water tiles: added a `WATER_TILES` name lookup (covering all vanilla water variants and `out-of-map`) checked before spawning in both `is_safe_spawn()` (night trickle) and `spawn_horde()` (directional horde wall columns)
 
 ---

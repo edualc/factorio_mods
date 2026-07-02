@@ -346,6 +346,11 @@ local function swarm_tier(e)
   return "small"
 end
 
+-- Entity types to skip in the factory scan. Excluding these at the API level avoids
+-- returning and iterating every item-on-ground, character, etc. in a megabase.
+local FACTORY_EXCLUDED = { character = true, unit = true, item_entity = true,
+                           resource = true, corpse = true }
+
 ------------------------------------------------ directional horde (R-GEN-5)
 
 --- The factory reference: the CENTRE (centroid of player-force buildings), the
@@ -362,7 +367,7 @@ local function factory_reference(surface)
   local positions = {}
   local sx, sy, n = 0, 0, 0
   for _, e in pairs(surface.find_entities_filtered { force = "player" }) do
-    if e.valid and e.type ~= "character" then
+    if e.valid and not FACTORY_EXCLUDED[e.type] then
       local p = e.position
       positions[#positions + 1] = { x = p.x, y = p.y }
       sx = sx + p.x; sy = sy + p.y; n = n + 1
@@ -493,7 +498,14 @@ end
 --- horde on the horizon is visible. All pcall-guarded (missing force / uncharted
 --- area degrade to no marker; the gps chat warning still fired at start).
 local function place_warning_marker(surface, w, pos)
-  if w.marker and w.marker.valid then pcall(function() w.marker.destroy() end) end
+  if w.marker and w.marker.valid then
+    -- Update the existing tag in-place; avoid the destroy+create round-trip every call.
+    pcall(function()
+      w.marker.text = "Horde: " .. (w.count or 0)
+      w.marker.position = pos
+    end)
+    return
+  end
   w.marker = nil
   local pf = game.forces and game.forces["player"]
   if not pf then return end

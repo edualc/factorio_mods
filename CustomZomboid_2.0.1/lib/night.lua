@@ -40,12 +40,16 @@ local NIGHT_THRESHOLD = 0.5
 local NIGHT_SUFFIX = tiers.NIGHT_SUFFIX
 
 -- Throttle: run the sweep only every Nth tick (cheap on the other ticks).
-local SWEEP_PERIOD = 30
+-- 60-tick interval (1 second) is imperceptible vs the previous 30-tick cycle.
+local SWEEP_PERIOD = 60
 
--- Radius around each character to act on enemy units within. Generous enough to
--- cover what's on screen; the sweep cost scales with units in this circle, not
--- with the whole surface.
-local SWEEP_RADIUS = 48
+-- Radius around each character to act on enemy units within. 32 tiles covers
+-- what's visible on screen; cutting from 48 reduces the search area by ~56%.
+local SWEEP_RADIUS = 32
+
+-- Maximum units swapped per sweep per anchor point to bound worst-case cost
+-- when a very large horde is packed near the player.
+local SWAP_CAP = 150
 
 --------------------------------------------------------------------- helpers
 
@@ -180,8 +184,13 @@ function night.on_tick(event)
     local units = surface.find_entities_filtered {
       type = "unit", force = util.ENEMY_FORCE, position = pos, radius = SWEEP_RADIUS,
     }
+    local swapped = 0
     for _, u in pairs(units) do
-      if u.valid then swap_unit(surface, u, night_now) end
+      if u.valid then
+        swap_unit(surface, u, night_now)
+        swapped = swapped + 1
+        if swapped >= SWAP_CAP then break end
+      end
     end
   end
 end

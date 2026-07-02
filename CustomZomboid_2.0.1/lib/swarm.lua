@@ -49,6 +49,13 @@ local fold_cache = {}
 local fold_cache_tick = -1
 local FOLD_CELL = 8
 
+-- Module-level cache for horde_population. Not persisted across loads; rebuilt on
+-- first call after load. TTL of 120 ticks means at most one full iteration per 2 s
+-- even if the warning calls us every 60 ticks.
+local _horde_pop_cache      = nil
+local _horde_pop_cache_tick = -math.huge
+local HORDE_POP_CACHE_TTL   = 120
+
 -- Reverse of tiers.INDIVIDUAL: individual-zombie prototype name -> tier. Used by
 -- the reanimation handler to recognise OUR hatched zombies and recover their tier.
 local INDIVIDUAL_TO_TIER = {}
@@ -659,7 +666,13 @@ end
 --- ones on read. Used by the horde warning so its "remaining" count tracks real DEATHS,
 --- not how far the horde has dispersed (the old fixed-radius position scan decayed as
 --- the marching wall spread out). Returns (count, centroid-or-nil).
+--- Result is cached for HORDE_POP_CACHE_TTL ticks so a large horde_units table is not
+--- iterated on every warning update (60-tick cadence).
 function swarm.horde_population()
+  local now = game.tick
+  if _horde_pop_cache and (now - _horde_pop_cache_tick) < HORDE_POP_CACHE_TTL then
+    return _horde_pop_cache.count, _horde_pop_cache.centroid
+  end
   local z = state()
   local total, sx, sy = 0, 0, 0
   for un, e in pairs(z.horde_units) do
@@ -674,12 +687,16 @@ function swarm.horde_population()
     end
   end
   local centroid = total > 0 and { x = sx / total, y = sy / total } or nil
+  _horde_pop_cache = { count = total, centroid = centroid }
+  _horde_pop_cache_tick = now
   return total, centroid
 end
 
 --- Drop ALL horde-membership tracking. Called when a NEW horde begins (lib/horde
 --- begin_active) so a previous horde's survivors can't inflate the new count.
 function swarm.clear_horde_members()
+  _horde_pop_cache = nil
+  _horde_pop_cache_tick = -math.huge
   local z = state()
   for un in pairs(z.horde_units) do z.horde_units[un] = nil end
   for _, rec in pairs(z.swarm) do rec.horde_member = nil end

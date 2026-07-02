@@ -67,6 +67,9 @@ script.on_event(defines.events.on_entity_died, function(event)
   corpses.on_entity_died(event)
   swarm.on_entity_died(event)
   contagion.on_removed(event)  -- a dead entity also leaves the mover registry
+  if event.entity and event.entity.type == "character" then
+    infection.invalidate_char_cache()
+  end
 end)
 
 ------------------------------------------------------------------- reanimation
@@ -133,6 +136,14 @@ end)
 -- Drop per-player melee toggle state when a player is removed.
 script.on_event(defines.events.on_player_removed, function(event)
   melee.on_player_removed(event)
+end)
+
+-- Invalidate the infection character cache when player characters appear or disappear.
+script.on_event(defines.events.on_player_joined_game, function(_)
+  infection.invalidate_char_cache()
+end)
+script.on_event(defines.events.on_player_left_game, function(_)
+  infection.invalidate_char_cache()
 end)
 
 ------------------------------------------------------------------- settings
