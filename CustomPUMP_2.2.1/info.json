@@ -1,0 +1,14 @@
+{
+  "name": "CustomPUMP",
+  "version": "2.2.1",
+  "title": "Custom P.U.M.P.",
+  "author": "edualc",
+  "contact": "",
+  "homepage": "",
+  "factorio_version": "2.1",
+  "dependencies": [
+    "base >= 2.1",
+    "? ModuleInserterEx >= 7.0.2"
+  ],
+  "description": "P.U.M.P. (Prevent Unwanted Manual Pump-placement) adds a selection-tool with which you can select oil wells, and then plans the layout of pumpjacks and pipes for you."
+}
