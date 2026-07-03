@@ -1,11 +1,11 @@
-[![Discord](https://img.shields.io/discord/433039858794233858?style=for-the-badge&logo=discord&label=Comfy)](https://getcomfy.eu/discord)[![GitHub Release](https://img.shields.io/github/v/release/ComfyFactory/ComfyFactorio?style=for-the-badge&logo=github)](https://github.com/ComfyFactory/ComfyFactorio)[![Ko-Fi](https://img.shields.io/badge/Ko--fi-support%20me-ff5e5b?logo=kofi&logoColor=white&style=for-the-badge)](https://ko-fi.com/comfyfactorio)[![Patreon](https://img.shields.io/badge/Ko--fi-support%20me-ff5e5b?logo=patreon&logoColor=white&label=Patreon&style=for-the-badge)](https://www.patreon.com/c/ComfyFactorio)
+# CustomRobotsResistFire `2.1.0`
 
-## Robots
+Makes all robots and belts completely immune to fire damage.
 
-A simple mod that increases the fire resistance for robots in general.
+**Original mod:** [RobotsResistFire](https://mods.factorio.com/mod/RobotsResistFire) by **Gerkiz**
 
----
+## Changes from original
 
-## Bugs
-
-Let me know if you run into any.
+- Increased fire resistance from 95% to 100% (true immunity instead of near-immunity)
+- Extended fire immunity to belts: transport-belt, underground-belt, splitter, linked-belt, loader, loader-1x1 — all tiers covered
+- Refactored repeated resistance logic into a helper function
