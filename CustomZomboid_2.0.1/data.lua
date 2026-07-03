@@ -12,13 +12,3 @@ require("prototypes.items")          -- S7: corpse + kiln-dried corpse items
 require("prototypes.recipes")        -- S7: kiln recipe (fallback corpse-kiln)
 require("prototypes.technology")     -- S8: melee upgrade technologies
 require("prototypes.shortcuts")      -- S8: double-tap per-player toggle
-
--- Sprite for the safe-zone overlay toggle button (top-right mod-gui).
--- Zombie silhouette from game-icons.net by Delapouite, CC BY 3.0.
-data:extend({{
-  type     = "sprite",
-  name     = "zomtorio-safezones-icon",
-  filename = "__CustomZomboid__/graphics/zombie_icon.png",
-  size     = 512,
-  flags    = { "icon" },
-}})

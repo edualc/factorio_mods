@@ -12,10 +12,9 @@ local melee     = require("lib.melee")
 local night     = require("lib.night")
 local swarm     = require("lib.swarm")
 local nest      = require("lib.nest")
-local safezones = require("lib.safezones")
 
 -- Modules with first-time setup. raw_cost runs first: others depend on its cache.
-local INIT_ORDER = { raw_cost, horde, infection, contagion, corpses, melee, night, swarm, safezones }
+local INIT_ORDER = { raw_cost, horde, infection, contagion, corpses, melee, night, swarm }
 
 local function on_init()
   storage.zomtorio = storage.zomtorio or {}
@@ -45,7 +44,7 @@ script.on_event(defines.events.on_tick, function(event)
   contagion.on_tick(event)
   night.on_tick(event)
   horde.on_tick(event)
-  safezones.on_tick(event)
+
 end)
 
 ------------------------------------------------------------------- damage
@@ -123,10 +122,6 @@ script.on_event(defines.events.on_lua_shortcut, function(event)
   melee.on_toggle_shortcut(event)
 end)
 
-------------------------------------------------------------------- gui clicks (safe-zone overlay toggle button)
-script.on_event(defines.events.on_gui_click, function(event)
-  safezones.on_gui_click(event)
-end)
 
 ------------------------------------------------------------------- research
 -- Unlock the double-tap shortcut for a force once the melee tech is researched.
@@ -136,10 +131,8 @@ end)
 
 ------------------------------------------------------------------- players
 -- A new player on a force that already unlocked double-tap gets it on by default.
--- Also adds the safe-zone overlay button to the new player's GUI.
 script.on_event(defines.events.on_player_created, function(event)
   melee.on_player_created(event)
-  safezones.on_player_created(event)
 end)
 
 -- Drop per-player melee toggle state when a player is removed.
@@ -148,10 +141,8 @@ script.on_event(defines.events.on_player_removed, function(event)
 end)
 
 -- Invalidate the infection character cache when player characters appear or disappear.
--- Also restores the safe-zone overlay button after a reconnect (GUI is recreated).
-script.on_event(defines.events.on_player_joined_game, function(event)
+script.on_event(defines.events.on_player_joined_game, function(_)
   infection.invalidate_char_cache()
-  safezones.on_player_joined(event)
 end)
 script.on_event(defines.events.on_player_left_game, function(_)
   infection.invalidate_char_cache()
