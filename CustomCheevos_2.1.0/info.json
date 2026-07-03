@@ -1,0 +1,9 @@
+{
+  "name": "CustomCheevos",
+  "version": "2.1.0",
+  "title": "Custom Unrestricted Achievements",
+  "author": "akki",
+  "description": "Removes all map-setting restrictions on achievements. Peaceful mode, no enemies, custom evolution — all achievements still unlock. Replaces both cheevos_base and cheevos_spage (deprecated since 2.0.77).",
+  "dependencies": [],
+  "factorio_version": "2.1"
+}

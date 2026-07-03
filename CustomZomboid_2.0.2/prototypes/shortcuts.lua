@@ -19,9 +19,9 @@ data:extend({
     toggleable = true,
     localised_name = { "shortcut.zomtorio-double-tap" },
     technology_to_unlock = "zomtorio-swarm-melee-2",
-    icon = "__base__/graphics/icons/shortcut-toolbar/mip/new-blueprint-x56.png",
-    icon_size = 56,
-    small_icon = "__base__/graphics/icons/shortcut-toolbar/mip/new-blueprint-x24.png",
-    small_icon_size = 24,
+    icon = "__CustomZomboid__/graphics/sword.png",
+    icon_size = 128,
+    small_icon = "__CustomZomboid__/graphics/sword.png",
+    small_icon_size = 128,
   },
 })

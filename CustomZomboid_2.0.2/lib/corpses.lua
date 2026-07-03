@@ -99,10 +99,10 @@ function corpses.on_entity_died(event)
 end
 
 -- NOTE: the corpse-reanimation interception (on_trigger_created_entity) lives in
--- lib/horde.lua, NOT here. Factorio forbids require() at runtime, so this handler
--- can't lazily reach horde; and a top-level corpses->horde require would cycle
--- (horde already requires corpses for corpse drops). horde already owns the cap
--- (cap_room/track/fold), so the handler is cleanest there. See horde.on_trigger_created_entity.
+-- lib/swarm.lua, NOT here. Factorio forbids require() at runtime, so this handler
+-- can't lazily reach swarm; and a top-level corpses->swarm require would cycle
+-- (swarm already requires corpses for corpse drops). swarm already owns the cap
+-- (cap_room/track/fold), so the handler is cleanest there. See swarm.on_trigger_created_entity.
 
 --- Test-only: pin (or, with nil, release) the bot-collection setting. See
 --- `bot_collect_override` above; mirrors horde.set_cap_override.

@@ -366,11 +366,11 @@ local function point_in_box(pos, box, margin)
      and pos.y >= ly - margin and pos.y <= ry + margin
 end
 
---- Infect every fluid-connected neighbour of `conduit`, in ALL directions (a fluid
---- network has no readable flow direction). Factorio 2.1 removed LuaEntity.fluidbox /
---- .neighbours; the connections now come from LuaEntity.get_fluid_box_neighbours(i),
---- which returns { { entity = <connected entity>, index = <its fluidbox index> }, ... }
---- per fluidbox. This reports true fluid topology — adjacent pipes, the far end of a
+--- Infect every fluid-connected neighbour of `conduit`, spreading only downstream
+--- (output / input-output connections). Factorio 2.1 removed LuaEntity.fluidbox /
+--- .neighbours; connections come from LuaEntity.get_fluid_box_pipe_connections(i),
+--- which returns connection tables with flow_direction and target fields per fluidbox.
+--- This reports true fluid topology — adjacent pipes, the far end of a
 --- pipe-to-ground across the underground gap, and connected tanks/pumps/machines — so
 --- it works for any fluid entity regardless of footprint. Every infected fluid entity
 --- (machines included) re-enters the pipe frontier via the infection listener

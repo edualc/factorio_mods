@@ -273,7 +273,7 @@ storage.Player_Attributes = {
 	"LV_Inv_Bonus",
 	"LV_InvTrash_Bonus",
 	"LV_Robot_Bonus",
-	"LV_Reach_Dist",	
+	"LV_Reach_Dist",
 	}
 
 
@@ -1945,6 +1945,7 @@ local pot_table = {"rpg_amnesia_potion","rpg_level_up_potion","rpg_small_xp_poti
 if script.active_mods['death_curses'] then	table.insert(pot_table,'rpg_curse_cure_potion')	end
 return pot_table
 end
+
 
 
 remote.add_interface("RPG", interface )

@@ -40,6 +40,12 @@ local util    = require("lib.util")
 
 local infection = {}
 
+-- Robot types that receive partial infection resistance, consistent with their
+-- full fire immunity (CustomRobotsResistFire). Each infection tick deals only
+-- ROBOT_RESISTANCE fraction of normal DoT so robots last ~2x longer.
+local ROBOT_TYPES = { ["logistic-robot"] = true, ["construction-robot"] = true }
+local ROBOT_RESISTANCE = 0.5
+
 -- Module-level character cache for process_players. Not persisted across loads
 -- (rebuilt on the first tick after a load). Invalidated on player join/leave/death
 -- so the per-tick path becomes a cheap table read instead of find_entities_filtered.
@@ -272,6 +278,9 @@ local function process(rec, now)
     local dt = now - rec.last_tick
     if dt > 0 then
       local dmg = e.max_health * dt / ticks
+      -- Robots take infection damage at 50% rate — partial resistance consistent
+      -- with their full fire immunity (CustomRobotsResistFire).
+      if ROBOT_TYPES[e.type] then dmg = dmg * ROBOT_RESISTANCE end
       rec.last_tick = now
       e.damage(dmg, enemy_force(), INFECTION_DAMAGE_TYPE)
       -- damage() may have killed it; the resulting on_entity_died (enemy-caused)

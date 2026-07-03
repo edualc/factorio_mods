@@ -653,6 +653,13 @@ local function begin_active(s, surface, tick, dur, forced)
   local angle = angle_override or ((tick * 2.3999632) % (2 * math.pi))  -- per-event direction
   local dist = radius + HORDE_OFFSET                 -- beyond the factory edge
   local origin = { x = center.x + math.cos(angle) * dist, y = center.y + math.sin(angle) * dist }
+  -- Redirect origin to land before placing the warning marker and printing the GPS
+  -- announcement — without this the marker and chat message point at water even when
+  -- every column is later successfully redirected by spawn_horde.
+  if is_water_tile(surface, origin) then
+    local land = util.find_land_near(surface, origin, 128, 16)
+    if land then origin = land end
+  end
   s.origin = origin
   s.target = nearest_building(buildings, origin, center)  -- nearest base edge
   s.factory_center = center
@@ -695,8 +702,14 @@ local function end_active(s, surface, tick, e)
     local tier = swarm_tier(e)
     for i, c in ipairs(cols) do
       local remaining = s.column_buckets[i] or 0
-      if remaining > 0 and not is_water_tile(surface, c.pos) then
-        swarm.spawn(surface, c.pos, remaining, tier, util.ENEMY_FORCE, nil, nil, true)
+      if remaining > 0 then
+        local pos = c.pos
+        if is_water_tile(surface, pos) then
+          pos = util.find_land_near(surface, pos, 128, 16)
+        end
+        if pos then
+          swarm.spawn(surface, pos, remaining, tier, util.ENEMY_FORCE, nil, nil, true)
+        end
       end
     end
   end
@@ -726,6 +739,8 @@ function horde.on_init()
     s.warned = false
     s.active = false
     s.period_end_tick = nil
+    s.pending_spawn = 0  -- clear drain queue so on_tick doesn't keep spawning
+    s.origin = nil       -- nil origin stops the drain guard even if pending_spawn leaked
   end
 end
 

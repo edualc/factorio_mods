@@ -38,7 +38,7 @@ Adds a basic RPG system to the game — XP gain, level-ups, and skills for the p
 
 ---
 
-### CustomZomboid `2.0.1`
+### CustomZomboid `2.0.2`
 Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infection spreads through your logistics network, and corpses reanimate. Requires Space Age.
 
 **Original mod:** [Zomboid](https://mods.factorio.com/mod/Zomboid) by **Martin Howarth**
@@ -54,7 +54,7 @@ Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infecti
 - Telegraphed, evolution-scaling horde events at night on top of pollution-driven attacks; a horde advances as a wall from one direction targeting your factory
 - Spitter swarms: engine-spawned spitters form their own swarm clusters alongside biters
 - Corpse disposal: zombie pyre (burns inserted corpses, no power) and corpse kiln (converts corpses into storable fuel)
-- Melee technologies: Tier 1 unlocks swarm multi-kill, Tier 2 strengthens it and adds Double Tap toggle (corpse-free kills, on by default once researched)
+- Melee technologies: Tier 1 unlocks swarm multi-kill, Tier 2 strengthens it and adds Corpse-free melee toggle (no corpse on melee kill = no reanimation risk, on by default once researched)
 - Zombies and swarms move faster at night (configurable); unit speed change is implemented via a day/night prototype swap since runtime speed writes are ignored by the AI
 - Denser, more aggressive nests and base expansion; pollution recruits far more attackers
 - Console command `/zomtorio-horde [minutes]` to trigger a horde on demand without disabling achievements
@@ -72,9 +72,31 @@ Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infecti
 - Performance: large horde spawns (9k+) no longer lag the game; bursts are queued and drained at 50 entities per tick instead of all at once, spreading the `find_non_colliding_position` cost across ~12 ticks rather than spiking a single tick
 - Performance: per-column march targets are now precomputed once at horde-event start and cached in `s.column_targets`, eliminating the `nearest_building` O(N_buildings) scan that previously ran per column per drain tick (up to 9 × 12 = 108 scans per burst)
 - Performance: `factory_reference` result is cached for 5 minutes so rapid `/zomtorio-horde` invocations do not each pay the full `find_entities_filtered` player-force scan
-- Fixed night-trickle zombies potentially spawning on concrete via position drift: `is_safe_spawn` previously checked only the exact ring point, but `find_non_colliding_position` can move the actual spawn up to 16 tiles away. Now uses `find_tiles_filtered` with a 16-tile buffer so any concrete within drift range suppresses the spawn
+- Fixed night-trickle zombies potentially spawning on concrete via position drift
+- Fixed night-trickle concrete check: `is_safe_spawn` previously checked only the exact ring point, but `find_non_colliding_position` can move the actual spawn up to 16 tiles away. Now uses `find_tiles_filtered` with a 16-tile buffer so any concrete within drift range suppresses the spawn
 - Fixed lag when horde spawn corridors overlap water: `find_non_colliding_position` avoids entity bounding-box collisions but is tile-unaware, so it could return a water-tile position near the coast. Two-level fix: at the column level, `spawn_horde` now redirects water columns to the nearest land tile (up to 128 tiles away) via `util.find_land_near` rather than skipping them; at the entity level, a `safe_place` helper in `swarm.lua` validates the resolved position and retries with progressively wider scans (32 tiles → 128 tiles, 16-tile steps — analogous to picking a fresh horde spawn origin) before giving up. `WATER_TILES`, `is_water_tile`, and `find_land_near` are shared via `util.lua`
 - Horde swarm clusters now scale in density with estimated horde size: per-column drain-tick allotments (~5-6 zombies) accumulate in per-column buckets and only flush into a cluster when the bucket reaches a size threshold — 10 for hordes ≥300, 20 for ≥1000, 40 for ≥3000, 80 for ≥9000. Small hordes (below 300) flush every tick as before. Partial buckets are flushed when the event ends so no zombies are silently discarded
+
+---
+
+### CustomPUMP `2.2.1`
+Adds a selection tool to auto-plan pumpjack and pipe layouts for oil fields. Select wells, PUMP places everything optimally using A* pathfinding.
+
+**Original mod:** [P.U.M.P.](https://mods.factorio.com/mod/pump) by **Xcone**
+
+**Changes from original:**
+- A* node key changed from string concatenation (`x .. "," .. y`) to integer arithmetic (`x + y * 1e9`): eliminates a heap string allocation on every node visit during pathfinding, reducing GC pressure proportionally to field size. No behavioral change — keys remain unique for all valid map coordinates
+
+---
+
+### CustomCheevos `2.1.0`
+Removes all map-setting restrictions on achievements. Peaceful mode, disabled enemies, custom evolution — all achievements still unlock regardless of map configuration.
+
+**Original mods:** [cheevos_base](https://mods.factorio.com/mod/cheevos_base) and [cheevos_spage](https://mods.factorio.com/mod/cheevos_spage) by **dupraz**
+
+**Changes from original:**
+- Merges cheevos_base and cheevos_spage into one mod — cheevos_spage was deprecated in 2.0.77 because base-game and Space Age achievements share the same `allowed_without_fight` flag; a single data-final-fixes pass after all DLC prototypes load covers both
+- Ported to Factorio 2.1
 
 ---
 
