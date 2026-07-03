@@ -25,26 +25,38 @@ end
 
 -- Prototypes/recipes can change across mod updates; recompute derived caches and
 -- re-apply map settings.
-local function on_configuration_changed()
-  storage.zomtorio = storage.zomtorio or {}
-  -- Destroy any render objects left behind by the removed safe-zone overlay.
-  local sz = storage.zomtorio.safezones
+-- Recursively search a GUI element tree for the safe-zone button and destroy it.
+local function remove_safezone_button(element)
+  if not (element and element.valid) then return end
+  if element.name == "zomtorio-safe-zones-btn" then
+    element.destroy()
+    return
+  end
+  for _, child in pairs(element.children) do
+    remove_safezone_button(child)
+  end
+end
+
+local function purge_safezone_remnants()
+  -- Destroy orphaned render objects from the removed overlay.
+  local sz = storage.zomtorio and storage.zomtorio.safezones
   if sz and sz.renders then
     for _, r in pairs(sz.renders) do
       if r and r.valid then pcall(function() r.destroy() end) end
     end
   end
-  storage.zomtorio.safezones = nil
-  -- Remove the safe-zone toggle button from every player's mod-gui flow.
-  local mod_gui = require("mod-gui")
+  if storage.zomtorio then storage.zomtorio.safezones = nil end
+  -- Remove the toggle button from every player's top GUI (wherever it ended up).
   for _, player in pairs(game.players) do
-    if player.valid then
-      local flow = mod_gui.get_button_flow(player)
-      if flow and flow["zomtorio-safe-zones-btn"] then
-        flow["zomtorio-safe-zones-btn"].destroy()
-      end
+    if player.valid and player.gui and player.gui.top then
+      remove_safezone_button(player.gui.top)
     end
   end
+end
+
+local function on_configuration_changed()
+  storage.zomtorio = storage.zomtorio or {}
+  purge_safezone_remnants()
   for _, m in ipairs(INIT_ORDER) do
     if m.on_init then m.on_init() end
   end
