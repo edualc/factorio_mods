@@ -141,6 +141,12 @@ local SAFE_TILES = {
   ["hazard-concrete"]       = true,
   ["refined-hazard-concrete"] = true,
 }
+-- Array form for find_tiles_filtered (used in the proximity check below).
+local SAFE_TILE_NAMES = {"concrete", "refined-concrete", "hazard-concrete", "refined-hazard-concrete"}
+-- find_non_colliding_position in do_spawn searches up to this radius, so a spawn
+-- point that passes the single-tile check can still drift onto concrete. Blocking
+-- any ring point within this buffer of concrete prevents that.
+local SAFE_TILE_BUFFER = 16
 
 -- Tiles zombies cannot stand on. Name-based to stay compatible with Factorio 2.x
 -- (LuaTilePrototype has no walkable_speed_modifier in 2.x).
@@ -309,12 +315,18 @@ local function is_water_tile(surface, pos)
 end
 
 --- True if the night trickle should NOT spawn at `pos`: the tile is water,
---- paved concrete, or a powered lamp is shining within LAMP_BLOCK_RADIUS.
+--- concrete is within SAFE_TILE_BUFFER tiles (matching find_non_colliding_position's
+--- search radius so drift can't place a zombie on concrete), or a powered lamp is
+--- shining within LAMP_BLOCK_RADIUS.
 local function is_safe_spawn(surface, pos)
   local tile = surface.get_tile(pos)
   if not tile then return true end
   if WATER_TILES[tile.name] then return true end
-  if SAFE_TILES[tile.name] then return true end
+  -- Block if any concrete is within drift range, not just at the exact point.
+  local nearby = surface.find_tiles_filtered {
+    position = pos, radius = SAFE_TILE_BUFFER, name = SAFE_TILE_NAMES,
+  }
+  if #nearby > 0 then return true end
   local lamps = surface.find_entities_filtered {
     type = "lamp", position = pos, radius = LAMP_BLOCK_RADIUS, limit = 1,
   }
