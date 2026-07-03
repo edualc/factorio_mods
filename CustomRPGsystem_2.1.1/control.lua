@@ -1535,22 +1535,24 @@ local cause = event.cause
 local final_dmg = event.final_damage_amount
 
 
-if cause and cause.valid and entity and entity.valid and entity.health>0 and damage_type and original_damage_amount then
-	
-	-- NATURAL ARMOR
-	if final_dmg>0 and entity.type == 'character' then
-		local player = entity.player
-		if player and player.valid then
-			local armor_lv = storage.personalxp.LV_Armor_Bonus[player.name]
-			if armor_lv>0 then
-				local bonus = (storage.RPG_Bonus.LV_Armor_Bonus * armor_lv)
-				local recover = final_dmg*bonus/100
-				entity.health = entity.health + recover
-				end
+-- NATURAL ARMOR: applied unconditionally so it covers splash/explosion damage
+-- whose cause entity is already gone by the time on_entity_damaged fires (e.g.
+-- rpg_fireaball / rpg_hadouken), which made cause.valid=false and bypassed armor.
+if final_dmg>0 and entity and entity.valid and entity.type == 'character' then
+	local player = entity.player
+	if player and player.valid then
+		local armor_lv = storage.personalxp.LV_Armor_Bonus[player.name]
+		if armor_lv>0 then
+			local bonus = (storage.RPG_Bonus.LV_Armor_Bonus * armor_lv)
+			local recover = final_dmg*bonus/100
+			entity.health = entity.health + recover
 			end
 		end
+	end
 
-	-- DAMAGE BONUS 
+if cause and cause.valid and entity and entity.valid and entity.health>0 and damage_type and original_damage_amount then
+
+	-- DAMAGE BONUS
 	if cause.type == 'character' and damage_type.name~='poison' and damage_type.name~='cold' then
 		local player = cause.player
 		if player and player.valid then
