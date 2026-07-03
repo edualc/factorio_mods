@@ -205,6 +205,34 @@ local function apply_command(entity, command)
   pcall(function() entity.commandable.set_command(command) end)
 end
 
+--- find_non_colliding_position avoids entity bounding-box overlaps but ignores tile
+--- type, so it can return a water position when the spawn point is near a coast.
+--- Returns a non-water position for `entity_name` near `pos`, or nil if truly none
+--- exists. Priority:
+---   1. find_non_colliding_position result if on land (normal path)
+---   2. Nearby land tile within 32 tiles + non-colliding retry from there
+---   3. Wider land scan up to 128 tiles (16-tile steps) + non-colliding retry —
+---      equivalent to picking a fresh horde spawn origin when the local area is ocean
+---   4. nil → skip (genuinely no land reachable)
+local function safe_place(surface, entity_name, pos)
+  local place = surface.find_non_colliding_position(entity_name, pos, 16, 0.5)
+  if place and not util.is_water_tile(surface, place) then return place end
+  -- Non-colliding position is nil or water — scan nearby for a land tile and retry.
+  local land = util.find_land_near(surface, pos, 32)
+  if land then
+    place = surface.find_non_colliding_position(entity_name, land, 16, 0.5) or land
+    if not util.is_water_tile(surface, place) then return place end
+  end
+  -- Still nothing: widen the search significantly, as if picking a fresh horde
+  -- spawn origin — large steps keep this cheap (≤64 tile lookups).
+  land = util.find_land_near(surface, pos, 128, 16)
+  if land then
+    place = surface.find_non_colliding_position(entity_name, land, 16, 0.5) or land
+    if not util.is_water_tile(surface, place) then return place end
+  end
+  return nil
+end
+
 --- Create one swarm-unit entity holding `pop`, record it, size its health.
 --- `shamblers` (default 0) is how many of `pop` are reanimated shamblers that drop
 --- no corpse on death — tracked so proportional corpse drops survive folding.
@@ -214,7 +242,8 @@ end
 local function create_cluster(surface, pos, pop, tier, force, command, shamblers, kind, horde_member)
   kind = kind or "biter"
   local name = tiers.swarm_name(kind, tier)
-  local place = surface.find_non_colliding_position(name, pos, 16, 0.5) or pos
+  local place = safe_place(surface, name, pos)
+  if not place then return nil end
   local unit = surface.create_entity { name = name, position = place, force = force }
   if not (unit and unit.valid) then return nil end
   local rec = { pop = pop, tier = tier, kind = kind, horde_member = horde_member or nil,
@@ -251,16 +280,18 @@ local function do_spawn(surface, pos, count, tier, force, command, kind, horde_m
   local individual_name = tiers.individual_name(kind, tier)
   local made = 0
   for _ = 1, make_individuals do
-    local place = surface.find_non_colliding_position(individual_name, pos, 16, 0.5) or pos
-    local zombie = surface.create_entity {
-      name = individual_name, position = place, force = force,
-    }
-    if zombie and zombie.valid then
-      track_individual(zombie)
-      if horde_member then register_horde_unit(zombie) end
-      apply_command(zombie, command)
-      made_entities[#made_entities + 1] = zombie
-      made = made + 1
+    local place = safe_place(surface, individual_name, pos)
+    if place then
+      local zombie = surface.create_entity {
+        name = individual_name, position = place, force = force,
+      }
+      if zombie and zombie.valid then
+        track_individual(zombie)
+        if horde_member then register_horde_unit(zombie) end
+        apply_command(zombie, command)
+        made_entities[#made_entities + 1] = zombie
+        made = made + 1
+      end
     end
   end
 
@@ -287,12 +318,14 @@ local function spawn_shamblers(surface, pos, n, force, horde_member)
   local make = math.min(n, cap_room())
   local made = 0
   for _ = 1, make do
-    local place = surface.find_non_colliding_position(tiers.SHAMBLER, pos, 16, 0.5) or pos
-    local s = surface.create_entity { name = tiers.SHAMBLER, position = place, force = force }
-    if s and s.valid then
-      track_individual(s)
-      if horde_member then register_horde_unit(s) end
-      made = made + 1
+    local place = safe_place(surface, tiers.SHAMBLER, pos)
+    if place then
+      local s = surface.create_entity { name = tiers.SHAMBLER, position = place, force = force }
+      if s and s.valid then
+        track_individual(s)
+        if horde_member then register_horde_unit(s) end
+        made = made + 1
+      end
     end
   end
   local overflow = n - made

@@ -120,6 +120,15 @@ local SWARM_BURST_CAP  = 600
 -- calls — the main source of lag during large horde spawns.
 local SPAWN_PER_TICK = 50
 
+-- factory_reference is expensive (full find_entities_filtered scan). Cache the
+-- result for this many ticks so rapid /zomtorio-horde calls don't each pay it.
+-- 5 minutes is long enough to amortise manual burst-testing; short enough that the
+-- factory can grow meaningfully between scheduled events (which are days apart).
+local FACTORY_CACHE_TTL = 18000
+-- Module-level cache vars (reset on game load; first call after load does a real scan).
+local factory_cache_tick = -math.huge
+local factory_cache_center, factory_cache_radius, factory_cache_buildings
+
 -- Night-escalation baseline (R-GEN-4): a much smaller trickle on ordinary nights
 -- (when no event is active), so nights are tenser than days but clearly below a
 -- horde event. One small burst per NIGHT_BURST_PERIOD ticks.
@@ -149,17 +158,7 @@ end
 -- any ring point within this buffer of concrete prevents that.
 local SAFE_TILE_BUFFER = 16
 
--- Tiles zombies cannot stand on. Name-based to stay compatible with Factorio 2.x
--- (LuaTilePrototype has no walkable_speed_modifier in 2.x).
-local WATER_TILES = {
-  ["water"]           = true,
-  ["deepwater"]       = true,
-  ["water-green"]     = true,
-  ["deepwater-green"] = true,
-  ["water-shallow"]   = true,
-  ["water-mud"]       = true,
-  ["out-of-map"]      = true,
-}
+local WATER_TILES = util.WATER_TILES  -- shared with swarm.lua via util
 
 -- A powered lamp within this radius of the spawn point suppresses the trickle.
 -- Vanilla lamps illuminate ~10 tiles; 12 gives a small overlap so coverage is solid.
@@ -309,11 +308,7 @@ local function ring_point(pos, tick, salt)
   return { x = pos.x + math.cos(angle) * r, y = pos.y + math.sin(angle) * r }
 end
 
---- True if `pos` is on a tile zombies can't walk on (water, void, out-of-map).
-local function is_water_tile(surface, pos)
-  local tile = surface.get_tile(pos)
-  return tile ~= nil and WATER_TILES[tile.name] == true
-end
+local is_water_tile = util.is_water_tile
 
 --- True if the night trickle should NOT spawn at `pos`: the tile is water,
 --- concrete is within SAFE_TILE_BUFFER tiles (matching find_non_colliding_position's
@@ -377,10 +372,14 @@ local FACTORY_EXCLUDED = { character = true, unit = true, item_entity = true,
 --- and works with no player present (sandbox/editor). Scanned once per event (events
 --- are days apart). Falls back to the player force's spawn position when the base
 --- has no buildings yet. A test override (factory_override) bypasses the scan.
-local function factory_reference(surface)
+local function factory_reference(surface, tick)
   if factory_override then
     return factory_override.center, factory_override.radius or 0,
            factory_override.buildings or {}
+  end
+  tick = tick or (game and game.tick or 0)
+  if factory_cache_center and (tick - factory_cache_tick) < FACTORY_CACHE_TTL then
+    return factory_cache_center, factory_cache_radius, factory_cache_buildings
   end
   local positions = {}
   local sx, sy, n = 0, 0, 0
@@ -405,6 +404,10 @@ local function factory_reference(surface)
     local d = math.sqrt(dx * dx + dy * dy)
     if d > radius then radius = d end
   end
+  factory_cache_tick = tick
+  factory_cache_center = center
+  factory_cache_radius = radius
+  factory_cache_buildings = positions
   return center, radius, positions
 end
 
@@ -453,12 +456,25 @@ local function wall_columns(s, tick)
       x = s.origin.x + perp.x * off + jx,
       y = s.origin.y + perp.y * off + jy,
     }
-    -- This column marches on the factory point nearest IT (parallel lanes, no funnel).
-    local target = (s.buildings and #s.buildings > 0)
-      and nearest_building(s.buildings, pos, s.factory_center) or s.target
+    -- Use the target precomputed at event start (avoids nearest_building O(N) on every
+    -- drain tick). Falls back to s.target for edge cases (no buildings / old save).
+    local target = (s.column_targets and s.column_targets[i + 1]) or s.target
     out[#out + 1] = { pos = pos, target = target }
   end
   return out
+end
+
+--- Minimum per-column population before flushing a cluster, scaled with the
+--- horde's estimated size. Drain ticks add small per-column allotments (~5-6) to
+--- per-column buckets; the bucket only flushes once it hits this threshold, so
+--- large hordes produce dense clusters instead of many tiny ones. Returning 1
+--- (small hordes) means flush every drain tick — the original behaviour.
+local function horde_cluster_min(est)
+  if est >= 9000 then return 80 end
+  if est >= 3000 then return 40 end
+  if est >= 1000 then return 20 end
+  if est >= 300  then return 10 end
+  return 1
 end
 
 --- Spawn one burst as a broad WALL: split `count` across the front columns. Each
@@ -474,16 +490,33 @@ end
 --- with hundreds of simultaneous groups all trying to navigate the same narrow path,
 --- causing the engine's unit-group pathfinder to deadlock — the "frozen large horde"
 --- bug. Reuse means at most N_columns groups are active at once.
+---
+--- Per-column accumulator buckets (s.column_buckets) hold drain-tick allotments
+--- until they reach horde_cluster_min(). This batches many small allotments into one
+--- dense cluster rather than spawning a swarm of 5-6 pop entities.
 local function spawn_horde(surface, s, count, tier, tick)
   if count <= 0 or not s.origin then return end
   local cols = wall_columns(s, tick)
   local per = math.max(1, math.floor(count / #cols))
+  local min_pop = horde_cluster_min(s.est_size or 0)
+  s.column_buckets = s.column_buckets or {}
   s.active_groups = s.active_groups or {}
   for i, c in ipairs(cols) do
-    if is_water_tile(surface, c.pos) then goto continue end
+    if is_water_tile(surface, c.pos) then
+      -- Column landed in water — find the nearest land tile and redirect the column
+      -- there rather than skipping it entirely.
+      local land = util.find_land_near(surface, c.pos, 128, 16)
+      if not land then goto continue end
+      c.pos = land
+    end
+    -- Accumulate into the per-column bucket; only flush once it reaches min_pop.
+    s.column_buckets[i] = (s.column_buckets[i] or 0) + per
+    if s.column_buckets[i] < min_pop then goto continue end
+    local spawn_count = s.column_buckets[i]
+    s.column_buckets[i] = 0
     -- Spawn WITHOUT a per-unit command (nil); the group owns movement. horde_member
     -- = true so the warning can track this horde's live population.
-    local members = swarm.spawn(surface, c.pos, per, tier, util.ENEMY_FORCE, nil, nil, true) or {}
+    local members = swarm.spawn(surface, c.pos, spawn_count, tier, util.ENEMY_FORCE, nil, nil, true) or {}
     local cmd = c.target and march_command(c.target) or nil
 
     -- Reuse the existing group for this column; only create a new one when it has
@@ -609,13 +642,14 @@ local function begin_active(s, surface, tick, dur, forced)
   s.warned = true
   s.debug_grouped = 0    -- count of members added to unit groups this event (test hook)
   s.active_groups = nil  -- fresh per-column groups for this event
+  s.column_buckets = {}  -- fresh per-column accumulator buckets for this event
   s.pending_spawn = 0   -- clear any leftover queue from a previous event
 
   -- A fresh horde: forget the previous horde's members so its survivors can't
   -- inflate this horde's warning count.
   swarm.clear_horde_members()
 
-  local center, radius, buildings = factory_reference(surface)
+  local center, radius, buildings = factory_reference(surface, tick)
   local angle = angle_override or ((tick * 2.3999632) % (2 * math.pi))  -- per-event direction
   local dist = radius + HORDE_OFFSET                 -- beyond the factory edge
   local origin = { x = center.x + math.cos(angle) * dist, y = center.y + math.sin(angle) * dist }
@@ -629,7 +663,22 @@ local function begin_active(s, surface, tick, dur, forced)
   s.front_perp = { x = math.sin(angle), y = -math.cos(angle) }
   s.front_width = clamp(2 * radius, FRONT_MIN_WIDTH, FRONT_MAX_WIDTH)
 
+  -- Precompute per-column march targets once per event so wall_columns doesn't call
+  -- nearest_building (O(N_buildings)) on every drain tick.
+  local n_cols = clamp(math.floor(s.front_width / FRONT_COLUMN_SPACING + 0.5),
+                       FRONT_MIN_COLUMNS, FRONT_MAX_COLUMNS)
+  s.column_targets = {}
+  for i = 0, n_cols - 1 do
+    local frac = (n_cols > 1) and (i / (n_cols - 1) - 0.5) or 0
+    local col_pos = {
+      x = origin.x + s.front_perp.x * frac * s.front_width,
+      y = origin.y + s.front_perp.y * frac * s.front_width,
+    }
+    s.column_targets[i + 1] = nearest_building(buildings, col_pos, center)
+  end
+
   local est = estimate_size(evolution(surface), dur)
+  s.est_size = est  -- stored so spawn_horde can scale cluster density accordingly
   start_warning(surface, s, origin, est)
   game.print("A horde of ~" .. est .. " zombies is descending on the factory from [gps=" ..
     math.floor(origin.x) .. "," .. math.floor(origin.y) .. "," .. surface.name .. "]!")
@@ -639,10 +688,25 @@ end
 --- the warning — the marker persists (driven by update_warning) until the horde
 --- thins below WARNING_MIN_COUNT, which can be minutes after spawning stops.
 local function end_active(s, surface, tick, e)
+  -- Flush any partially-accumulated column buckets so no zombies are silently
+  -- discarded when the event ends mid-accumulation.
+  if s.column_buckets and s.origin then
+    local cols = wall_columns(s, tick)
+    local tier = swarm_tier(e)
+    for i, c in ipairs(cols) do
+      local remaining = s.column_buckets[i] or 0
+      if remaining > 0 and not is_water_tile(surface, c.pos) then
+        swarm.spawn(surface, c.pos, remaining, tier, util.ENEMY_FORCE, nil, nil, true)
+      end
+    end
+  end
   s.active, s.active_start, s.period_end_tick, s.forced_until = false, nil, nil, nil
   s.origin, s.target = nil, nil
-  s.active_groups = nil  -- release per-column group references
-  s.pending_spawn = 0   -- discard any unspawned queue remainder
+  s.active_groups = nil   -- release per-column group references
+  s.column_targets = nil  -- release precomputed targets
+  s.column_buckets = nil  -- release per-column accumulator buckets
+  s.est_size = nil
+  s.pending_spawn = 0     -- discard any unspawned queue remainder
   s.warned = false
   s.next_event_tick = tick + horde.event_interval_ticks(e, opt_frequency())
 end
