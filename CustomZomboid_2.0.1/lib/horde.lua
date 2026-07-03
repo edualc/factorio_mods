@@ -142,7 +142,16 @@ local SAFE_TILES = {
   ["refined-hazard-concrete"] = true,
 }
 -- Array form for find_tiles_filtered (used in the proximity check below).
-local SAFE_TILE_NAMES = {"concrete", "refined-concrete", "hazard-concrete", "refined-hazard-concrete"}
+-- Built at load time filtering to only prototype names that exist in this version
+-- of the game, so find_tiles_filtered doesn't error on unknown tile names.
+local SAFE_TILE_NAMES = (function()
+  local candidates = {"concrete", "refined-concrete", "hazard-concrete", "refined-hazard-concrete"}
+  local valid = {}
+  for _, name in ipairs(candidates) do
+    if prototypes.tile[name] then valid[#valid + 1] = name end
+  end
+  return valid
+end)()
 -- find_non_colliding_position in do_spawn searches up to this radius, so a spawn
 -- point that passes the single-tile check can still drift onto concrete. Blocking
 -- any ring point within this buffer of concrete prevents that.
