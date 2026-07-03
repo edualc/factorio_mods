@@ -2,14 +2,14 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEPLOY_DIR="$(dirname "$SCRIPT_DIR")/deploy"
+DEPLOY_DIR="$SCRIPT_DIR/deploy"
 cd "$SCRIPT_DIR"
 
 mkdir -p "$DEPLOY_DIR"
 rm -f "$DEPLOY_DIR"/*.zip
 
 if command -v powershell.exe &>/dev/null; then
-    _pack() { powershell.exe -NoProfile -Command "Compress-Archive -Force -Path '$(cygpath -w "$1")' -DestinationPath '$(cygpath -w "$DEPLOY_DIR/${1}.zip")'"; }
+    _pack() { powershell.exe -NoProfile -Command "Compress-Archive -Force -Path '$(wslpath -w "$1")' -DestinationPath '$(wslpath -w "$DEPLOY_DIR/${1}.zip")'"; }
 else
     _pack() { zip -r "$DEPLOY_DIR/${1}.zip" "$1"; }
 fi
