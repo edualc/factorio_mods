@@ -2,7 +2,7 @@
   "name": "CustomRobotsResistFire",
   "version": "2.1.0",
   "title": "Custom Robots Resist Fire",
-  "author": "Gerkiz",
+  "author": "edualc",
   "description": "Increases the fire resistance of robots in general.",
   "dependencies": [
     "base >= 2.1"

@@ -1,13 +1,13 @@
 {
-    "name": "CustomZomboid",
-    "version": "2.0.2",
-    "title": "CustomZomboid",
-    "author": "Martin Howarth",
-    "factorio_version": "2.1",
-    "dependencies": [
-        "base >= 2.0",
-        "space-age >= 2.0",
-        "? quality"
-    ],
-    "description": "Turns Factorio's biters into an overwhelming zombie horde. Buildings destroyed by the horde become sources of new zombies; infection spreads through your factory along the flow of goods; corpses reanimate. Requires Space Age."
+  "name": "CustomZomboid",
+  "version": "2.0.2",
+  "title": "CustomZomboid",
+  "author": "edualc",
+  "factorio_version": "2.1",
+  "dependencies": [
+    "base >= 2.0",
+    "space-age >= 2.0",
+    "? quality"
+  ],
+  "description": "Turns Factorio's biters into an overwhelming zombie horde. Buildings destroyed by the horde become sources of new zombies; infection spreads through your factory along the flow of goods; corpses reanimate. Requires Space Age."
 }

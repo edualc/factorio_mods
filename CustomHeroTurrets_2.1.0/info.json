@@ -2,7 +2,7 @@
   "name": "CustomHeroTurrets",
   "version": "2.1.0",
   "title": "CustomHeroTurrets",
-  "author": "PixelWhipped",
+  "author": "edualc",
   "factorio_version": "2.1.0",
   "description": "Turrets are built using salvaged self-learning AI tech from your ship allowing them to get deadlier with practice. Extends turrets via ranking system based on kills. Turrets generated so not limited to vanilla, identifiable by overlaid rank insignia. Rank buffs individual turrets.",
   "dependencies": [
