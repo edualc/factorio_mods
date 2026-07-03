@@ -13,18 +13,6 @@
 data:extend({
   {
     type = "shortcut",
-    name = "zomtorio-safe-zones",
-    order = "z[zomtorio]-b[safe-zones]",
-    action = "lua",
-    toggleable = true,
-    localised_name = { "shortcut.zomtorio-safe-zones" },
-    icon = "__base__/graphics/icons/shortcut-toolbar/mip/discharge-defense-remote-x56.png",
-    icon_size = 56,
-    small_icon = "__base__/graphics/icons/shortcut-toolbar/mip/discharge-defense-remote-x56.png",
-    small_icon_size = 56,
-  },
-  {
-    type = "shortcut",
     name = "zomtorio-double-tap",
     order = "z[zomtorio]-a[double-tap]",
     action = "lua",
