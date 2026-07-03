@@ -133,25 +133,17 @@ local NIGHT_BURST_CAP    = 60
 local SPAWN_RING_MIN = 40
 local SPAWN_RING_MAX = 60
 
--- Tiles that block night-trickle spawning: concrete floors are hostile ground for
--- zombies rising from the earth.
-local SAFE_TILES = {
-  ["concrete"]              = true,
-  ["refined-concrete"]      = true,
-  ["hazard-concrete"]       = true,
-  ["refined-hazard-concrete"] = true,
-}
--- Array form for find_tiles_filtered (used in the proximity check below).
--- Built at load time filtering to only prototype names that exist in this version
--- of the game, so find_tiles_filtered doesn't error on unknown tile names.
-local SAFE_TILE_NAMES = (function()
-  local candidates = {"concrete", "refined-concrete", "hazard-concrete", "refined-hazard-concrete"}
-  local valid = {}
-  for _, name in ipairs(candidates) do
-    if prototypes.tile[name] then valid[#valid + 1] = name end
+-- Tiles that block night-trickle spawning: all concrete variants (regular, refined,
+-- hazard, and any modded additions). Built at load time from prototypes.tile so
+-- tile renames across game versions are handled automatically.
+local SAFE_TILES = {}
+local SAFE_TILE_NAMES = {}
+for name in pairs(prototypes.tile) do
+  if name:find("concrete", 1, true) then
+    SAFE_TILES[name] = true
+    SAFE_TILE_NAMES[#SAFE_TILE_NAMES + 1] = name
   end
-  return valid
-end)()
+end
 -- find_non_colliding_position in do_spawn searches up to this radius, so a spawn
 -- point that passes the single-tile check can still drift onto concrete. Blocking
 -- any ring point within this buffer of concrete prevents that.
