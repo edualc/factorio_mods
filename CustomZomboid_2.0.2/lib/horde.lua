@@ -739,6 +739,8 @@ function horde.on_init()
     s.warned = false
     s.active = false
     s.period_end_tick = nil
+    s.pending_spawn = 0  -- clear drain queue so on_tick doesn't keep spawning
+    s.origin = nil       -- nil origin stops the drain guard even if pending_spawn leaked
   end
 end
 
