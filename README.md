@@ -34,6 +34,7 @@ Adds a basic RPG system to the game — XP gain, level-ups, and skills for the p
 **Changes from original:**
 - Ported to Factorio 2.1
 - CustomZomboid integration: when a Zomtorio swarm cluster is killed, XP is calculated from the cluster's full zombie population (via the `CustomZomboid.get_cluster_kills` remote call) multiplied by a single zombie's XP value, rather than counting the cluster as one kill. Covers all swarm variants including their faster night forms, which map back to the same base zombie type for XP purposes.
+- Fixed RPG magic effects (rpg_fireaball, rpg_hadouken) dealing unmitigated friendly-fire splash damage despite 100% armor: explosion entities are already gone by the time `on_entity_damaged` fires, making `cause.valid` false and skipping the armor heal-back. Armor now applies unconditionally before the cause guard.
 
 ---
 
@@ -68,6 +69,8 @@ Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infecti
 - Performance: character health snapshot in `process_players` uses a cached entity table (rebuilt only on player join/leave/death) instead of `find_entities_filtered` every tick, reducing per-tick cost in multiplayer or with modded NPC characters
 - Fixed horde and night-trickle zombies spawning on water tiles: added a `WATER_TILES` name lookup (covering all vanilla water variants and `out-of-map`) checked before spawning in both `is_safe_spawn()` (night trickle) and `spawn_horde()` (directional horde wall columns)
 - Fixed large hordes freezing when units cluster: each burst was creating a new unit group per column, flooding the spawn corridor with hundreds of simultaneous groups competing for the same path and deadlocking the engine's unit-group pathfinder. Groups are now reused across bursts (one per column); new members join the already-marching group instead of forming their own
+- Performance: large horde spawns (9k+) no longer lag the game; bursts are queued and drained at 50 entities per tick instead of all at once, spreading the `find_non_colliding_position` cost across ~12 ticks rather than spiking a single tick
+- Fixed night-trickle zombies potentially spawning on concrete via position drift: `is_safe_spawn` previously checked only the exact ring point, but `find_non_colliding_position` can move the actual spawn up to 16 tiles away. Now uses `find_tiles_filtered` with a 16-tile buffer so any concrete within drift range suppresses the spawn
 
 ---
 
