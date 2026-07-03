@@ -15,7 +15,8 @@ local attributesList = {
   "LV_Inv_Bonus",
   "LV_InvTrash_Bonus",
   "LV_Robot_Bonus",
-  "LV_Reach_Dist",  
+  "LV_Reach_Dist",
+  "LV_Infection_Resistance",
 }
 
 function createSprite(att)

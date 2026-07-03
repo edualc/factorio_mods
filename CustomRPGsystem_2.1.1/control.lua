@@ -273,7 +273,8 @@ storage.Player_Attributes = {
 	"LV_Inv_Bonus",
 	"LV_InvTrash_Bonus",
 	"LV_Robot_Bonus",
-	"LV_Reach_Dist",	
+	"LV_Reach_Dist",
+	"LV_Infection_Resistance",
 	}
 
 
@@ -1944,6 +1945,18 @@ function interface.get_potions_list()
 local pot_table = {"rpg_amnesia_potion","rpg_level_up_potion","rpg_small_xp_potion","rpg_big_xp_potion","rpg_crafting_potion","rpg_speed_potion","rpg_small_healing_potion","rpg_big_healing_potion"}
 if script.active_mods['death_curses'] then	table.insert(pot_table,'rpg_curse_cure_potion')	end
 return pot_table
+end
+
+-- Returns a multiplier > 1 representing how much longer infection takes to kill
+-- this player. Used by CustomZomboid to scale the player DoT. Each LV_Infection_Resistance
+-- level adds the configured % bonus to the effective infection_ticks.
+-- Example: level 10 at 5% bonus = 1.5x → takes 50% longer to die from infection.
+function interface.GetInfectionResistanceMultiplier(playername)
+local lv = storage.personalxp.LV_Infection_Resistance and
+           storage.personalxp.LV_Infection_Resistance[playername] or 0
+if lv <= 0 then return 1.0 end
+local bonus = storage.RPG_Bonus and storage.RPG_Bonus["LV_Infection_Resistance"] or 5
+return 1.0 + (lv * bonus / 100)
 end
 
 

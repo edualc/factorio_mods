@@ -117,6 +117,16 @@ data:extend({
 	order = "al"
 },
 
+{
+	type = "int-setting",
+	name = "charxpmod_LV_Infection_Resistance",
+	setting_type = "startup",
+	default_value = 5,
+	minimum_value = 0,
+	maximum_value = 20,
+	order = "am"
+},
+
 
 
 ----------------------

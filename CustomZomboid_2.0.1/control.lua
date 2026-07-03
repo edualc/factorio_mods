@@ -12,9 +12,10 @@ local melee     = require("lib.melee")
 local night     = require("lib.night")
 local swarm     = require("lib.swarm")
 local nest      = require("lib.nest")
+local safezones = require("lib.safezones")
 
 -- Modules with first-time setup. raw_cost runs first: others depend on its cache.
-local INIT_ORDER = { raw_cost, horde, infection, contagion, corpses, melee, night, swarm }
+local INIT_ORDER = { raw_cost, horde, infection, contagion, corpses, melee, night, swarm, safezones }
 
 local function on_init()
   storage.zomtorio = storage.zomtorio or {}
@@ -44,6 +45,7 @@ script.on_event(defines.events.on_tick, function(event)
   contagion.on_tick(event)
   night.on_tick(event)
   horde.on_tick(event)
+  safezones.on_tick(event)
 end)
 
 ------------------------------------------------------------------- damage
@@ -119,6 +121,7 @@ end
 ------------------------------------------------------------------- shortcuts
 script.on_event(defines.events.on_lua_shortcut, function(event)
   melee.on_toggle_shortcut(event)
+  safezones.on_toggle(event)
 end)
 
 ------------------------------------------------------------------- research
