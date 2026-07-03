@@ -46,16 +46,6 @@ local infection = {}
 local ROBOT_TYPES = { ["logistic-robot"] = true, ["construction-robot"] = true }
 local ROBOT_RESISTANCE = 0.5
 
--- Ask CustomRPGsystem for the player's infection-resistance multiplier (>= 1).
--- Gracefully returns 1.0 when the RPG mod is absent or the player has no levels.
-local function rpg_resistance_mult(character)
-  if not remote.interfaces["RPG"] then return 1.0 end
-  local player = character.player
-  if not (player and player.valid) then return 1.0 end
-  local ok, mult = pcall(remote.call, "RPG", "GetInfectionResistanceMultiplier", player.name)
-  return (ok and mult and mult > 1.0) and mult or 1.0
-end
-
 -- Module-level character cache for process_players. Not persisted across loads
 -- (rebuilt on the first tick after a load). Invalidated on player join/leave/death
 -- so the per-tick path becomes a cheap table read instead of find_entities_filtered.
@@ -488,8 +478,6 @@ local function process_players(now)
       ps.records[un] = nil  -- net heal -> cure (R-PINF-5); leave the character healed
     else
       local ticks = infection_ticks()
-      -- Scale by RPG infection resistance when CustomRPGsystem is active.
-      ticks = ticks * rpg_resistance_mult(c)
       if ticks and ticks > 0 then
         -- Base off the lower of current/floor: passive regen above the floor is
         -- discarded (R-PINF-4); external extra damage below it is respected.
