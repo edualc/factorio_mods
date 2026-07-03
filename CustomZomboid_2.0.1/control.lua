@@ -27,6 +27,15 @@ end
 -- re-apply map settings.
 local function on_configuration_changed()
   storage.zomtorio = storage.zomtorio or {}
+  -- Destroy any render objects left behind by the removed safe-zone overlay
+  -- (safezones.lua was removed; its render objects persist in old saves until cleaned up).
+  local sz = storage.zomtorio.safezones
+  if sz and sz.renders then
+    for _, r in pairs(sz.renders) do
+      if r and r.valid then pcall(function() r.destroy() end) end
+    end
+  end
+  storage.zomtorio.safezones = nil
   for _, m in ipairs(INIT_ORDER) do
     if m.on_init then m.on_init() end
   end
@@ -44,7 +53,6 @@ script.on_event(defines.events.on_tick, function(event)
   contagion.on_tick(event)
   night.on_tick(event)
   horde.on_tick(event)
-
 end)
 
 ------------------------------------------------------------------- damage
@@ -121,7 +129,6 @@ end
 script.on_event(defines.events.on_lua_shortcut, function(event)
   melee.on_toggle_shortcut(event)
 end)
-
 
 ------------------------------------------------------------------- research
 -- Unlock the double-tap shortcut for a force once the melee tech is researched.
