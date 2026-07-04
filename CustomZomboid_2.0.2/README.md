@@ -28,6 +28,8 @@ Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infecti
 - Fixed large hordes freezing when units cluster: groups are now reused across bursts (one per column); new members join the already-marching group instead of forming their own
 - Fixed night-trickle zombies potentially spawning on concrete via position drift
 - Fixed night-trickle concrete check: `is_safe_spawn` previously checked only the exact ring point, but `find_non_colliding_position` can move the actual spawn up to 16 tiles away. Now uses `find_tiles_filtered` with a 16-tile buffer so any concrete within drift range suppresses the spawn
+- Balance: biter and spitter movement speed divisor reduced 4→2 (half vanilla day speed; night speedup brings them to full vanilla at night) — previously too slow to close the gap or reposition against long-range turrets
+- Balance: spitter attack range boosted to minimum 20 tiles (was ~15 vanilla) — matches hero turret range (18-27+) so spitters can fire back instead of being kited
 - Fixed `on_configuration_changed` mid-horde state: `s.pending_spawn` and `s.origin` are now cleared so a save loaded mid-forced-horde doesn't keep draining into the old origin
 - Performance: `swarm.fold()` cache TTL extended from 1 tick to 60 ticks — the cache now stays warm across the entire spoilage burst when thousands of corpses expire over many consecutive ticks
 - Performance: night-variant sweep period raised 30→60 ticks, sweep radius reduced 48→32 tiles (~56% smaller search area), and a per-anchor swap cap of 150 units added — together these cut the worst-case entity-recreation cost by ~75% during large horde assaults at night
