@@ -351,12 +351,43 @@ local function spawn_near_anchors(surface, count, tier, tick)
   end
 end
 
---- Tier for horde spawns: shift toward tougher zombies as evolution climbs
---- (R-GEN-5 intensity grows with evolution; R-BAL-2 tier mix).
+-- Piecewise-linear weight table per tier — mirrors Factorio's result_units system:
+-- each tier has an evolution window where its weight rises and fades, overlapping
+-- with its neighbours so the tier mix shifts smoothly instead of switching hard.
+--   small:  dominates early game, fades out by evo 0.7
+--   medium: enters at evo 0.2, peaks mid-game, gone by evo 0.8
+--   big:    starts at evo 0.4, dominates late game
+local TIER_WEIGHT_BP = {
+  small  = {{0.0, 1.0}, {0.5, 0.3}, {0.7, 0.0}},
+  medium = {{0.0, 0.0}, {0.2, 0.3}, {0.5, 0.4}, {0.8, 0.0}},
+  big    = {{0.0, 0.0}, {0.4, 0.0}, {0.6, 0.3}, {1.0, 0.4}},
+}
+
+local function interp_weight(bp, e)
+  if e <= bp[1][1] then return bp[1][2] end
+  if e >= bp[#bp][1] then return bp[#bp][2] end
+  for i = 1, #bp - 1 do
+    if e >= bp[i][1] and e <= bp[i+1][1] then
+      local t = (e - bp[i][1]) / (bp[i+1][1] - bp[i][1])
+      return bp[i][2] + t * (bp[i+1][2] - bp[i][2])
+    end
+  end
+  return 0
+end
+
+--- Tier for horde spawns: probabilistic mix mirroring Factorio's result_units.
+--- Each tier has overlapping weight windows so the mix transitions smoothly with
+--- evolution rather than switching hard at fixed thresholds (R-GEN-5 / R-BAL-2).
 local function swarm_tier(e)
-  if e >= 0.9 then return "big" end
-  if e >= 0.5 then return "medium" end
-  return "small"
+  local ws = interp_weight(TIER_WEIGHT_BP.small,  e)
+  local wm = interp_weight(TIER_WEIGHT_BP.medium, e)
+  local wb = interp_weight(TIER_WEIGHT_BP.big,    e)
+  local total = ws + wm + wb
+  if total <= 0 then return "small" end
+  local roll = math.random() * total
+  if roll < ws then return "small" end
+  if roll < ws + wm then return "medium" end
+  return "big"
 end
 
 -- Entity types to skip in the factory scan. Excluding these at the API level avoids
