@@ -511,16 +511,12 @@ function swarm.on_entity_damaged(event)
   local kind = rec.kind or "biter"
 
   local single = single_health(tier, kind)
-  local dtype = event.damage_type and event.damage_type.name
-  local kills
-  if dtype and MULTI_KILL_TYPES[dtype] then
-    -- Use damage actually DEALT (post-resistance): swarm units inherit the
-    -- biter's resistances, so original_damage_amount would over-count kills.
-    local dealt = event.final_damage_amount or event.original_damage_amount or 0
-    kills = math.max(1, math.floor(dealt / single))
-  else
-    kills = 1
-  end
+  -- All damage types now scale kills by floor(dealt / single_health) so attack
+  -- damage has meaningful value — a stronger weapon clears more zombies per hit,
+  -- not just at the same rate as a weak one. Minimum 1 kill per hit guaranteed.
+  -- Use final_damage_amount (post-resistance) so resistances still matter.
+  local dealt = event.final_damage_amount or event.original_damage_amount or 0
+  local kills = math.max(1, math.floor(dealt / single))
 
   local surface, pos, force = entity.surface, entity.position, entity.force
 
