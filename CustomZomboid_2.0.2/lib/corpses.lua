@@ -19,8 +19,8 @@ local corpses = {}
 local CORPSE_ITEM = "zomtorio-corpse"
 
 -- Damage types that destroy a zombie utterly: no corpse, so it can never
--- reanimate (R-CORPSE-4). Flame is "fire" in vanilla.
-local NO_CORPSE_DAMAGE = { fire = true, explosion = true }
+-- reanimate (R-CORPSE-4). Flame is "fire" in vanilla; laser turrets use "laser".
+local NO_CORPSE_DAMAGE = { fire = true, explosion = true, laser = true }
 
 -- Test-only override of the bot-collection setting. Runtime-global settings can
 -- only be written by their owning mod, so the test harness (a separate mod) can't
