@@ -8,7 +8,7 @@
     "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
   },
   "permissions": {
-    "defaultMode": "acceptEdits",
+    "defaultMode": "auto",
     "allow": [
       "Bash(git status:*)",
       "Bash(git diff:*)",
