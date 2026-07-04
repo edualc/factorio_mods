@@ -500,17 +500,18 @@ local function wall_columns(s, tick)
   return out
 end
 
---- Minimum per-column population before flushing a cluster, scaled with the
---- horde's estimated size. Drain ticks add small per-column allotments (~5-6) to
---- per-column buckets; the bucket only flushes once it hits this threshold, so
---- large hordes produce dense clusters instead of many tiny ones. Returning 1
---- (small hordes) means flush every drain tick — the original behaviour.
-local function horde_cluster_min(est)
-  if est >= 9000 then return 80 end
-  if est >= 3000 then return 40 end
-  if est >= 1000 then return 20 end
-  if est >= 300  then return 10 end
-  return 1
+--- Minimum per-column population before flushing a cluster, scaled with both
+--- the horde's estimated size and current evolution. Larger base thresholds
+--- prevent tiny 1-2 pop clusters; the evolution floor (50 × evo) ensures
+--- endgame clusters are always meaningfully large (≥50 at evo 1.0).
+local function horde_cluster_min(est, evo)
+  local base
+  if est >= 9000 then base = 80
+  elseif est >= 3000 then base = 50
+  elseif est >= 1000 then base = 30
+  elseif est >= 300  then base = 15
+  else base = 5 end
+  return math.max(base, math.floor(50 * (evo or 0)))
 end
 
 --- Spawn one burst as a broad WALL: split `count` across the front columns. Each
@@ -534,7 +535,7 @@ local function spawn_horde(surface, s, count, tier, tick)
   if count <= 0 or not s.origin then return end
   local cols = wall_columns(s, tick)
   local per = math.max(1, math.floor(count / #cols))
-  local min_pop = horde_cluster_min(s.est_size or 0)
+  local min_pop = horde_cluster_min(s.est_size or 0, s.evo or 0)
   s.column_buckets = s.column_buckets or {}
   s.active_groups = s.active_groups or {}
   for i, c in ipairs(cols) do
@@ -720,8 +721,10 @@ local function begin_active(s, surface, tick, dur, forced)
     s.column_targets[i + 1] = nearest_building(buildings, col_pos, center)
   end
 
-  local est = estimate_size(evolution(surface), dur)
+  local e_now = evolution(surface)
+  local est = estimate_size(e_now, dur)
   s.est_size = est  -- stored so spawn_horde can scale cluster density accordingly
+  s.evo = e_now    -- stored so spawn_horde can apply evolution-based cluster min
   start_warning(surface, s, origin, est)
   game.print("A horde of ~" .. est .. " zombies is descending on the factory from [gps=" ..
     math.floor(origin.x) .. "," .. math.floor(origin.y) .. "," .. surface.name .. "]!")
@@ -755,6 +758,7 @@ local function end_active(s, surface, tick, e)
   s.column_targets = nil  -- release precomputed targets
   s.column_buckets = nil  -- release per-column accumulator buckets
   s.est_size = nil
+  s.evo = nil
   s.pending_spawn = 0     -- discard any unspawned queue remainder
   s.warned = false
   s.next_event_tick = tick + horde.event_interval_ticks(e, opt_frequency())
