@@ -24,12 +24,13 @@ local util    = require("lib.util")
 
 local swarm = {}
 
--- Damage types that multi-kill in a swarm (R-HORDE-5): explosive OR fire kill
--- floor(damage / single-zombie-health); everything else kills exactly one per hit.
--- "explosion"/"fire" are the area rules; "zomtorio-swarm-melee" is the S8 tech-gated
--- swarm-melee AoE (lib/melee). The BASE punch "zomtorio-zombie-melee" is deliberately
--- ABSENT: unupgraded melee kills exactly one (R-MELEE-1).
-local MULTI_KILL_TYPES = { explosion = true, fire = true, ["zomtorio-swarm-melee"] = true }
+-- HP multiplier applied to single_health when computing cluster kills. Loose
+-- individual biters are intentionally fragile (HEALTH_DIVISOR /4 in tuning.lua),
+-- but cluster MEMBERS should feel tankier so a single shot doesn't always kill one —
+-- otherwise only attack speed matters, not attack damage. Setting this to 4 (the
+-- inverse of HEALTH_DIVISOR) restores ~vanilla HP per cluster member: a basic gun
+-- turret shot kills exactly 1, a hero turret deals proportionally more.
+local CLUSTER_MEMBER_HP_MULT = 4
 
 -- A burst (R-HORDE-4) only triggers when a character is within this radius, so
 -- abstract clusters only "become real" near a player who'd actually see them.
@@ -510,11 +511,12 @@ function swarm.on_entity_damaged(event)
   local tier = rec.tier
   local kind = rec.kind or "biter"
 
-  local single = single_health(tier, kind)
-  -- All damage types now scale kills by floor(dealt / single_health) so attack
-  -- damage has meaningful value — a stronger weapon clears more zombies per hit,
-  -- not just at the same rate as a weak one. Minimum 1 kill per hit guaranteed.
-  -- Use final_damage_amount (post-resistance) so resistances still matter.
+  -- Cluster members use scaled-up HP so a single shot doesn't always guarantee a
+  -- kill: loose individuals are fragile (tuning /4), but within a cluster each
+  -- zombie counts as CLUSTER_MEMBER_HP_MULT × single_health to hit. This makes
+  -- attack damage matter — a weak turret may kill 0–1 per shot, a hero turret
+  -- proportionally more — while still guaranteeing at least 1 kill per hit.
+  local single = single_health(tier, kind) * CLUSTER_MEMBER_HP_MULT
   local dealt = event.final_damage_amount or event.original_damage_amount or 0
   local kills = math.max(1, math.floor(dealt / single))
 

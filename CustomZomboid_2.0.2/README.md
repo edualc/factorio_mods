@@ -28,7 +28,7 @@ Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infecti
 - Fixed large hordes freezing when units cluster: groups are now reused across bursts (one per column); new members join the already-marching group instead of forming their own
 - Fixed night-trickle zombies potentially spawning on concrete via position drift
 - Fixed night-trickle concrete check: `is_safe_spawn` previously checked only the exact ring point, but `find_non_colliding_position` can move the actual spawn up to 16 tiles away. Now uses `find_tiles_filtered` with a 16-tile buffer so any concrete within drift range suppresses the spawn
-- Balance: swarm cluster kills now scale with damage for all weapon types — `floor(dealt / single_health)` kills per hit instead of always 1; attack damage and attack speed are now both meaningful instead of only attack speed mattering
+- Balance: cluster members use `CLUSTER_MEMBER_HP_MULT × single_health` (×4, restoring ~vanilla HP per member) so a basic turret shot kills ~1 zombie and hero turrets proportionally more — attack damage and attack speed are now both meaningful
 - Fixed spitter cluster max_health incorrectly divided by 4 (1000→250): spitter cluster names contain "spitter" which caused the individual-health divisor loop to hit them, making them one-shottable by high-damage hero turrets before the damage handler could run
 - Balance: biter and spitter movement speed divisor reduced 4→2 (half vanilla day speed; night speedup brings them to full vanilla at night) — previously too slow to close the gap or reposition against long-range turrets
 - Balance: spitter attack range boosted to minimum 20 tiles (was ~15 vanilla) — matches hero turret range (18-27+) so spitters can fire back instead of being kited
