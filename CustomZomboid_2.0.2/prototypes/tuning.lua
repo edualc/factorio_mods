@@ -62,10 +62,15 @@ end
 ------------------------------------------------------- units (biters & spitters)
 -- The name match on "biter"/"spitter" deliberately ALSO catches the
 -- *-zomtorio-night variants from prototypes/night.lua, so day and night forms get
--- the same /4 speed treatment and the night/day ratio (1 + speedup) is preserved.
--- It does NOT catch the zomtorio-horde-* clusters (no "biter" in the name) — those
--- are tuned explicitly below so their script-managed health headroom is untouched.
+-- the same speed treatment and the night/day ratio (1 + speedup) is preserved.
+-- Spitter CLUSTERS (zomtorio-swarm-spitter-*) also contain "spitter" — they must be
+-- excluded or their max_health headroom (1000) gets divided by HEALTH_DIVISOR, leaving
+-- them at 250 and one-shottable by high-level hero turrets before the damage handler runs.
+local swarm_names = {}
+for _, n in ipairs(tiers.SWARM_ALL) do swarm_names[n] = true end
+
 for name, unit in pairs(data.raw.unit) do
+  if swarm_names[name] then goto continue_unit end
   local is_biter   = string.find(name, "biter")
   local is_spitter = string.find(name, "spitter")
   if is_biter or is_spitter then
@@ -97,6 +102,7 @@ for name, unit in pairs(data.raw.unit) do
       unit.attack_parameters.range = math.max(unit.attack_parameters.range or 15, SPITTER_RANGE_MIN)
     end
   end
+  ::continue_unit::
 end
 
 -- R-BAL-1: guarantee the basic zombie dies to a single punch at evo 1.0. The /4
