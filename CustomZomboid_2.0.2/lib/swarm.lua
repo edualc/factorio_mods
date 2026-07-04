@@ -32,6 +32,14 @@ local swarm = {}
 -- turret shot kills exactly 1, a hero turret deals proportionally more.
 local CLUSTER_MEMBER_HP_MULT = 4
 
+-- Evolution scaling for cluster member HP. At evolution E, each member's effective
+-- HP is multiplied by (1 + EVO_HP_SCALE * E):
+--   evo 0.0 → ×1.0 (early game, base HP)
+--   evo 0.5 → ×2.0 (mid game, twice as tanky)
+--   evo 1.0 → ×3.0 (late game, three times as tanky)
+-- This makes attack damage progressively more important as the game advances.
+local EVO_HP_SCALE = 2
+
 -- A burst (R-HORDE-4) only triggers when a character is within this radius, so
 -- abstract clusters only "become real" near a player who'd actually see them.
 local BURST_RADIUS = 32
@@ -511,12 +519,16 @@ function swarm.on_entity_damaged(event)
   local tier = rec.tier
   local kind = rec.kind or "biter"
 
-  -- Cluster members use scaled-up HP so a single shot doesn't always guarantee a
-  -- kill: loose individuals are fragile (tuning /4), but within a cluster each
-  -- zombie counts as CLUSTER_MEMBER_HP_MULT × single_health to hit. This makes
-  -- attack damage matter — a weak turret may kill 0–1 per shot, a hero turret
-  -- proportionally more — while still guaranteeing at least 1 kill per hit.
-  local single = single_health(tier, kind) * CLUSTER_MEMBER_HP_MULT
+  -- Effective HP per cluster member scales with evolution so late-game clusters
+  -- are progressively tankier. (1 + EVO_HP_SCALE * evo): ×1 at evo 0, ×2 at
+  -- evo 0.5, ×3 at evo 1.0. pcall-guarded; defaults to 0 if unreadable.
+  local evo = 0
+  local enemy_force = game.forces and game.forces[util.ENEMY_FORCE]
+  if enemy_force and entity.surface and entity.surface.valid then
+    local ok, e = pcall(function() return enemy_force.get_evolution_factor(entity.surface) end)
+    if ok and e then evo = e end
+  end
+  local single = single_health(tier, kind) * CLUSTER_MEMBER_HP_MULT * (1 + EVO_HP_SCALE * evo)
   local dealt = event.final_damage_amount or event.original_damage_amount or 0
   local kills = math.max(1, math.floor(dealt / single))
 
