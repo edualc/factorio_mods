@@ -264,9 +264,12 @@ local function state()
   local s = storage.zomtorio.horde
   if not s then
     s = { next_event_tick = nil, warned = false, active = false,
-          period_end_tick = nil, forced_until = nil }
+          period_end_tick = nil, forced_until = nil,
+          rng = game.create_random_generator() }
     storage.zomtorio.horde = s
   end
+  -- Restore rng after on_configuration_changed (storage preserved, rng missing).
+  if not s.rng then s.rng = game.create_random_generator() end
   return s
 end
 
@@ -378,13 +381,15 @@ end
 --- Tier for horde spawns: probabilistic mix mirroring Factorio's result_units.
 --- Each tier has overlapping weight windows so the mix transitions smoothly with
 --- evolution rather than switching hard at fixed thresholds (R-GEN-5 / R-BAL-2).
+--- Uses the storage-backed LuaRandomGenerator (NOT math.random) so the roll is
+--- synchronised across all clients and doesn't cause multiplayer desyncs.
 local function swarm_tier(e)
   local ws = interp_weight(TIER_WEIGHT_BP.small,  e)
   local wm = interp_weight(TIER_WEIGHT_BP.medium, e)
   local wb = interp_weight(TIER_WEIGHT_BP.big,    e)
   local total = ws + wm + wb
   if total <= 0 then return "small" end
-  local roll = math.random() * total
+  local roll = state().rng() * total
   if roll < ws then return "small" end
   if roll < ws + wm then return "medium" end
   return "big"

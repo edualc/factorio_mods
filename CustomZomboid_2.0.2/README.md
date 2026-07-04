@@ -25,6 +25,7 @@ Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infecti
 - Fixed contagion spreading sluggishly along belts when only a single item was in transit
 - Fixed horde and night-trickle zombies spawning on water tiles: added a `WATER_TILES` name lookup (covering all vanilla water variants and `out-of-map`) checked before spawning in both `is_safe_spawn()` (night trickle) and `spawn_horde()` (directional horde wall columns)
 - Fixed horde warning marker pointing at water: `begin_active()` now redirects the origin to the nearest land tile before placing the marker and printing the GPS message
+- Fixed multiplayer desync: `swarm_tier()` was using `math.random()` which is not synchronised across clients in Factorio; replaced with a `LuaRandomGenerator` stored in `storage` so all clients roll the same tier sequence
 - Fixed crash when horde spawns beyond the generated map edge: `surface.get_tile()` can return a non-nil but invalid LuaTile for ungenerated chunks; accessing `.name` on it threw a non-recoverable error in `is_water_tile`. Invalid tiles are now treated as unwalkable so `find_land_near` keeps scanning for solid ground
 - Fixed large hordes freezing when units cluster: groups are now reused across bursts (one per column); new members join the already-marching group instead of forming their own
 - Fixed night-trickle zombies potentially spawning on concrete via position drift
