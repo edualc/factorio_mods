@@ -67,6 +67,25 @@ local function kind_of(name)
   return string.find(name, "spitter") and "spitter" or "biter"
 end
 
+-- Per-nest accumulator: instead of folding 1 zombie per engine spawn, accumulate
+-- in a per-spawner bucket and flush once the bucket reaches the threshold. This
+-- produces meaningfully-sized clusters from nest output rather than 1-pop entities.
+-- Threshold scales with evolution (1 at evo 0, NEST_CLUSTER_MAX at evo 1.0) and is
+-- deliberately kept low because nest spawn frequency is already very high.
+-- Total zombie count is unchanged — we just batch spawns into fewer, larger clusters.
+local NEST_CLUSTER_MAX = 5
+
+local function nest_cluster_threshold(evo)
+  return math.max(1, math.floor(1 + (NEST_CLUSTER_MAX - 1) * (evo or 0)))
+end
+
+local function nest_evo(surface)
+  local enemy = game and game.forces and game.forces[util.ENEMY_FORCE]
+  if not (enemy and surface and surface.valid) then return 0 end
+  local ok, e = pcall(function() return enemy.get_evolution_factor(surface) end)
+  return (ok and e) or 0
+end
+
 -- Optional test override of the budget (runtime-global settings can't be written by
 -- the separate test harness mod). nil in normal play -> the pollution-scaled budget.
 local budget_override
@@ -127,15 +146,32 @@ function nest.on_entity_spawned(event)
     return
   end
 
-  -- Fold +1 into the nearest local cluster of the same KIND (so a spitter forms a
-  -- spitter swarm, not a biter one). Release first (pcall-guarded: the method is
-  -- 2.1.7+ and only valid for spawner-owned units) so destroying the unit frees the
-  -- spawner's slot and it keeps producing to fill the swarm.
+  -- Fold into the nearest local cluster. Release first so destroying the unit frees
+  -- the spawner's slot and it keeps producing to fill the swarm.
   local tier = tier_of(entity.name)
   local kind = kind_of(entity.name)
   pcall(function() entity.release_from_spawner() end)
   entity.destroy()
-  swarm.fold(surface, pos, 1, tier, util.ENEMY_FORCE, 0, kind)
+
+  -- Accumulate per-nest before flushing. Bucket key: spawner unit_number (stable
+  -- per-nest ID); falls back to a position-cell key if spawner is unavailable.
+  local spawner = event.spawner
+  local bucket_key
+  if spawner and spawner.valid then
+    bucket_key = spawner.unit_number
+  else
+    local cx = math.floor(pos.x / 32)
+    local cy = math.floor(pos.y / 32)
+    bucket_key = cx .. ":" .. cy
+  end
+  storage.zomtorio = storage.zomtorio or {}
+  local buckets = storage.zomtorio.nest_buckets or {}
+  storage.zomtorio.nest_buckets = buckets
+  buckets[bucket_key] = (buckets[bucket_key] or 0) + 1
+  if buckets[bucket_key] < nest_cluster_threshold(nest_evo(surface)) then return end
+  local flush = buckets[bucket_key]
+  buckets[bucket_key] = 0
+  swarm.fold(surface, pos, flush, tier, util.ENEMY_FORCE, 0, kind)
 end
 
 --------------------------------------------------------------------- test API
