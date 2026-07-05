@@ -6,7 +6,7 @@ DEPLOY_DIR="$SCRIPT_DIR/deploy"
 cd "$SCRIPT_DIR"
 
 mkdir -p "$DEPLOY_DIR"
-rm -f "$DEPLOY_DIR"/*.zip
+rm -f "$DEPLOY_DIR"/*
 
 if command -v powershell.exe &>/dev/null; then
     # Convert Unix path to Windows path: cygpath for Git Bash, wslpath for WSL.

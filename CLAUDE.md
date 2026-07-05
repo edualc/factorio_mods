@@ -73,6 +73,15 @@ If a change touches any of these areas, note it explicitly in the commit message
 
 ---
 
+## Version bumping
+
+Before committing any change to a mod, increment the mod's patch version (the third number) in its `info.json`.
+
+- One change or many in the same commit → one patch bump
+- Only bump the mod(s) you actually changed
+
+---
+
 ## README maintenance
 
 Before committing any change, update @README.md to reflect what was changed.
