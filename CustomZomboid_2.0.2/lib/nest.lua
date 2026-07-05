@@ -73,7 +73,7 @@ end
 -- Threshold scales with evolution (1 at evo 0, NEST_CLUSTER_MAX at evo 1.0) and is
 -- deliberately kept low because nest spawn frequency is already very high.
 -- Total zombie count is unchanged — we just batch spawns into fewer, larger clusters.
-local NEST_CLUSTER_MAX = 5
+local NEST_CLUSTER_MAX = 15
 
 local function nest_cluster_threshold(evo)
   return math.max(1, math.floor(1 + (NEST_CLUSTER_MAX - 1) * (evo or 0)))
