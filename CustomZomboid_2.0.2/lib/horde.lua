@@ -559,6 +559,7 @@ local function spawn_horde(surface, s, count, tier, tick)
     -- Reuse the existing group for this column; only create a new one when it has
     -- dissolved (members all dead or disowned → group auto-destroys → .valid = false).
     local group = s.active_groups[i]
+    local is_new_group = false
     if not (group and group.valid) then
       group = nil
       s.active_groups[i] = nil
@@ -568,9 +569,7 @@ local function spawn_horde(surface, s, count, tier, tick)
       if ok and g then
         group = g
         s.active_groups[i] = group
-        if cmd then
-          pcall(function() group.set_command(cmd); group.start_moving() end)
-        end
+        is_new_group = true
       end
     end
 
@@ -582,9 +581,14 @@ local function spawn_horde(surface, s, count, tier, tick)
         end
       end
       s.debug_grouped = (s.debug_grouped or 0) + added  -- test hook: members grouped
+      -- Command the group AFTER members are added: start_moving() on an empty group
+      -- causes it to dissolve immediately, so any subsequent add_member calls fail
+      -- silently — the horde spawns but never marches.
+      if is_new_group and cmd and added > 0 then
+        pcall(function() group.set_command(cmd); group.start_moving() end)
+      end
     elseif cmd then
-      -- Fallback (group couldn't form): at least command the members directly so the
-      -- wave still advances rather than idling.
+      -- Fallback (group couldn't form): command the members directly.
       for _, e in ipairs(members) do
         if e and e.valid then pcall(function() e.commandable.set_command(cmd) end) end
       end
