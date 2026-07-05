@@ -18,9 +18,12 @@ local corpses = {}
 
 local CORPSE_ITEM = "zomtorio-corpse"
 
--- Damage types that destroy a zombie utterly: no corpse, so it can never
--- reanimate (R-CORPSE-4). Flame is "fire" in vanilla; laser turrets use "laser".
-local NO_CORPSE_DAMAGE = { fire = true, explosion = true, laser = true }
+-- Only physical damage (gun turrets, player melee) leaves a corpse that can
+-- reanimate (R-CORPSE-4). Every other damage type — fire, laser, explosion,
+-- electric, poison, etc. — destroys the zombie utterly: no corpse, no shambler.
+-- Whitelist is safer than a blacklist: unknown/modded damage types also leave
+-- no corpse by default.
+local CORPSE_DAMAGE = { physical = true }
 
 -- Test-only override of the bot-collection setting. Runtime-global settings can
 -- only be written by their owning mod, so the test harness (a separate mod) can't
@@ -49,7 +52,7 @@ function corpses.drop(surface, position, count, damage_type_name, no_corpse)
   if not (surface and surface.valid) then return end
   if not planets.is_active(surface) then return end
   if no_corpse then return end
-  if damage_type_name and NO_CORPSE_DAMAGE[damage_type_name] then return end
+  if not (damage_type_name and CORPSE_DAMAGE[damage_type_name]) then return end
 
   -- 2.1: spill_item_stack returns the item-on-ground entities it created.
   local dropped = surface.spill_item_stack {

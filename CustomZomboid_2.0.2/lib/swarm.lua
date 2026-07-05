@@ -528,6 +528,7 @@ function swarm.on_entity_damaged(event)
   local kills = math.max(1, math.floor(dealt / single))
 
   local surface, pos, force = entity.surface, entity.position, entity.force
+  local dtype = event.damage_type and event.damage_type.name
 
   -- Double-tap (R-MELEE-5): a melee kill while double-tap is on is dead-dead, so
   -- the killed population leaves no corpse — same rule as for individual zombies.
