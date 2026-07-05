@@ -31,9 +31,12 @@ util.WATER_TILES = {
 }
 
 --- True if `pos` is on a tile zombies can't walk on (water, void, out-of-map).
+--- An invalid LuaTile (ungenerated chunk) is treated as unwalkable so callers
+--- like find_land_near keep scanning rather than accepting a void position.
 function util.is_water_tile(surface, pos)
   local tile = surface.get_tile(pos)
-  return tile ~= nil and util.WATER_TILES[tile.name] == true
+  if not (tile and tile.valid) then return true end
+  return util.WATER_TILES[tile.name] == true
 end
 
 --- Scan outward from `pos` in eight directions (cardinal + diagonal) for the

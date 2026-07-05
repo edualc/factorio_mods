@@ -24,12 +24,17 @@ local util    = require("lib.util")
 
 local swarm = {}
 
--- Damage types that multi-kill in a swarm (R-HORDE-5): explosive OR fire kill
--- floor(damage / single-zombie-health); everything else kills exactly one per hit.
--- "explosion"/"fire" are the area rules; "zomtorio-swarm-melee" is the S8 tech-gated
--- swarm-melee AoE (lib/melee). The BASE punch "zomtorio-zombie-melee" is deliberately
--- ABSENT: unupgraded melee kills exactly one (R-MELEE-1).
-local MULTI_KILL_TYPES = { explosion = true, fire = true, ["zomtorio-swarm-melee"] = true }
+-- HP multiplier applied to single_health when computing cluster kills. Loose
+-- individual biters are intentionally fragile (HEALTH_DIVISOR /4 in tuning.lua),
+-- but cluster MEMBERS should feel tankier so a single shot doesn't always kill one —
+-- otherwise only attack speed matters, not attack damage. Setting this to 4 (the
+-- inverse of HEALTH_DIVISOR) restores ~vanilla HP per cluster member: a basic gun
+-- turret shot kills exactly 1, a hero turret deals proportionally more.
+-- Difficulty scaling with evolution is handled by the TIER MIX (lib/horde swarm_tier),
+-- not by a per-hit multiplier: at high evolution, medium/big clusters spawn increasingly
+-- often, and those tiers carry genuinely higher single_health (~75 / ~375 HP per member
+-- vs ~32 for small), making attack damage progressively more valuable.
+local CLUSTER_MEMBER_HP_MULT = 4
 
 -- A burst (R-HORDE-4) only triggers when a character is within this radius, so
 -- abstract clusters only "become real" near a player who'd actually see them.
@@ -41,17 +46,18 @@ local BURST_RADIUS = 32
 -- of at most this each.
 local MAX_CLUSTER_POP = 1000
 
--- Cache for swarm.fold(): maps "kind:tier:cellx:celly" -> cluster entity.
+-- Cache for swarm.fold(): maps "kind:tier:cellx:celly" -> cluster unit_number.
 -- Eliminates redundant find_entities_filtered calls during corpse-spoilage bursts.
 -- Kept for FOLD_CACHE_TTL ticks so spoilage spread across many ticks (the common
 -- case with thousands of corpses) benefits from the same cache hits as a single-tick
--- burst. Stale entries are safe: cached.valid is checked before use, and an invalid
+-- burst. Stale entries are safe: validity is checked before use, and an invalid
 -- entry falls through to find_entities_filtered and refreshes the slot.
 -- Grid cell size matches the merge radius so nearby positions share a cell.
-local fold_cache      = {}
-local fold_cache_tick = -math.huge
-local FOLD_CELL       = 8
-local FOLD_CACHE_TTL  = 60
+-- IMPORTANT: stored in storage (as unit_numbers, not entity references) so
+-- joining clients receive the same cache state as the server and don't diverge
+-- on the first fold call (module-local caches cause multiplayer desyncs).
+local FOLD_CELL      = 8
+local FOLD_CACHE_TTL = 60
 
 -- Module-level cache for horde_population. Not persisted across loads; rebuilt on
 -- first call after load. TTL of 120 ticks means at most one full iteration per 2 s
@@ -74,6 +80,8 @@ end
 -- storage.zomtorio.horde_units      : unit_number -> LuaEntity  (members of the
 --   CURRENT horde event — clusters AND individuals — so the horde warning can count
 --   the live horde by POPULATION, dispersion-proof; see swarm.horde_population)
+-- storage.zomtorio.fold_cache       : "kind:tier:cx:cy" -> unit_number (fold cache)
+-- storage.zomtorio.fold_cache_tick  : tick of last fold_cache flush
 
 local function state()
   storage.zomtorio = storage.zomtorio or {}
@@ -83,6 +91,8 @@ local function state()
   z.individual_count = z.individual_count or 0
   z.horde_units = z.horde_units or {}
   z.pending_pops = z.pending_pops or {}
+  z.fold_cache      = z.fold_cache or {}
+  z.fold_cache_tick = z.fold_cache_tick or (-math.huge)
   return z
 end
 
@@ -393,20 +403,23 @@ function swarm.fold(surface, pos, count, tier, force, shambler_count, kind, hord
 
   -- Flush the cache once its TTL expires (not every tick).
   local tick = game.tick
-  if (tick - fold_cache_tick) >= FOLD_CACHE_TTL then
-    fold_cache = {}
-    fold_cache_tick = tick
+  if (tick - z.fold_cache_tick) >= FOLD_CACHE_TTL then
+    z.fold_cache = {}
+    z.fold_cache_tick = tick
   end
 
   -- Check the cache before running find_entities_filtered. With a multi-tick TTL
   -- the cache stays warm across the entire spoilage burst (which can span many ticks
   -- when thousands of corpses spoil), so only the first fold per grid cell per TTL
   -- window pays the find_entities_filtered cost.
+  -- Cache stores unit_numbers (not entity references) so it lives in storage and
+  -- is identical on server and joining clients — module-local entity refs caused desyncs.
   local cell_x = math.floor(pos.x / FOLD_CELL)
   local cell_y = math.floor(pos.y / FOLD_CELL)
   local cache_key = kind .. ":" .. tier .. ":" .. cell_x .. ":" .. cell_y
 
-  local cached = fold_cache[cache_key]
+  local cached_un = z.fold_cache[cache_key]
+  local cached = cached_un and game.get_entity_by_unit_number(cached_un)
   if cached and cached.valid then
     local rec = z.swarm[cached.unit_number]
     if rec then
@@ -418,7 +431,7 @@ function swarm.fold(surface, pos, count, tier, force, shambler_count, kind, hord
       return cached
     end
     -- Cached entity lost its swarm record (destroyed mid-tick): fall through.
-    fold_cache[cache_key] = nil
+    z.fold_cache[cache_key] = nil
   end
 
   -- Merge into a nearby existing cluster of the SAME kind+tier if one is tracked.
@@ -435,7 +448,7 @@ function swarm.fold(surface, pos, count, tier, force, shambler_count, kind, hord
         if horde_member then rec.horde_member = true; register_horde_unit(unit) end
         unit.health = pop_health(unit, rec.pop, tier)
         update_label(rec)
-        fold_cache[cache_key] = unit
+        z.fold_cache[cache_key] = unit.unit_number
         return unit
       end
     end
@@ -454,7 +467,7 @@ function swarm.fold(surface, pos, count, tier, force, shambler_count, kind, hord
   end
   -- Cache the created cluster so subsequent folds in this cell merge into it
   -- rather than creating more clusters.
-  if last then fold_cache[cache_key] = last end
+  if last then z.fold_cache[cache_key] = last.unit_number end
   return last
 end
 
@@ -510,19 +523,12 @@ function swarm.on_entity_damaged(event)
   local tier = rec.tier
   local kind = rec.kind or "biter"
 
-  local single = single_health(tier, kind)
-  local dtype = event.damage_type and event.damage_type.name
-  local kills
-  if dtype and MULTI_KILL_TYPES[dtype] then
-    -- Use damage actually DEALT (post-resistance): swarm units inherit the
-    -- biter's resistances, so original_damage_amount would over-count kills.
-    local dealt = event.final_damage_amount or event.original_damage_amount or 0
-    kills = math.max(1, math.floor(dealt / single))
-  else
-    kills = 1
-  end
+  local single = single_health(tier, kind) * CLUSTER_MEMBER_HP_MULT
+  local dealt = event.final_damage_amount or event.original_damage_amount or 0
+  local kills = math.max(1, math.floor(dealt / single))
 
   local surface, pos, force = entity.surface, entity.position, entity.force
+  local dtype = event.damage_type and event.damage_type.name
 
   -- Double-tap (R-MELEE-5): a melee kill while double-tap is on is dead-dead, so
   -- the killed population leaves no corpse — same rule as for individual zombies.

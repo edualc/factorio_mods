@@ -264,9 +264,12 @@ local function state()
   local s = storage.zomtorio.horde
   if not s then
     s = { next_event_tick = nil, warned = false, active = false,
-          period_end_tick = nil, forced_until = nil }
+          period_end_tick = nil, forced_until = nil,
+          rng = game.create_random_generator() }
     storage.zomtorio.horde = s
   end
+  -- Restore rng after on_configuration_changed (storage preserved, rng missing).
+  if not s.rng then s.rng = game.create_random_generator() end
   return s
 end
 
@@ -351,12 +354,45 @@ local function spawn_near_anchors(surface, count, tier, tick)
   end
 end
 
---- Tier for horde spawns: shift toward tougher zombies as evolution climbs
---- (R-GEN-5 intensity grows with evolution; R-BAL-2 tier mix).
+-- Piecewise-linear weight table per tier — mirrors Factorio's result_units system:
+-- each tier has an evolution window where its weight rises and fades, overlapping
+-- with its neighbours so the tier mix shifts smoothly instead of switching hard.
+--   small:  dominates early game, fades out by evo 0.7
+--   medium: enters at evo 0.2, peaks mid-game, gone by evo 0.8
+--   big:    starts at evo 0.4, dominates late game
+local TIER_WEIGHT_BP = {
+  small  = {{0.0, 1.0}, {0.5, 0.3}, {0.7, 0.0}},
+  medium = {{0.0, 0.0}, {0.2, 0.3}, {0.5, 0.4}, {0.8, 0.0}},
+  big    = {{0.0, 0.0}, {0.4, 0.0}, {0.6, 0.3}, {1.0, 0.4}},
+}
+
+local function interp_weight(bp, e)
+  if e <= bp[1][1] then return bp[1][2] end
+  if e >= bp[#bp][1] then return bp[#bp][2] end
+  for i = 1, #bp - 1 do
+    if e >= bp[i][1] and e <= bp[i+1][1] then
+      local t = (e - bp[i][1]) / (bp[i+1][1] - bp[i][1])
+      return bp[i][2] + t * (bp[i+1][2] - bp[i][2])
+    end
+  end
+  return 0
+end
+
+--- Tier for horde spawns: probabilistic mix mirroring Factorio's result_units.
+--- Each tier has overlapping weight windows so the mix transitions smoothly with
+--- evolution rather than switching hard at fixed thresholds (R-GEN-5 / R-BAL-2).
+--- Uses the storage-backed LuaRandomGenerator (NOT math.random) so the roll is
+--- synchronised across all clients and doesn't cause multiplayer desyncs.
 local function swarm_tier(e)
-  if e >= 0.9 then return "big" end
-  if e >= 0.5 then return "medium" end
-  return "small"
+  local ws = interp_weight(TIER_WEIGHT_BP.small,  e)
+  local wm = interp_weight(TIER_WEIGHT_BP.medium, e)
+  local wb = interp_weight(TIER_WEIGHT_BP.big,    e)
+  local total = ws + wm + wb
+  if total <= 0 then return "small" end
+  local roll = state().rng() * total
+  if roll < ws then return "small" end
+  if roll < ws + wm then return "medium" end
+  return "big"
 end
 
 -- Entity types to skip in the factory scan. Excluding these at the API level avoids
@@ -464,17 +500,18 @@ local function wall_columns(s, tick)
   return out
 end
 
---- Minimum per-column population before flushing a cluster, scaled with the
---- horde's estimated size. Drain ticks add small per-column allotments (~5-6) to
---- per-column buckets; the bucket only flushes once it hits this threshold, so
---- large hordes produce dense clusters instead of many tiny ones. Returning 1
---- (small hordes) means flush every drain tick — the original behaviour.
-local function horde_cluster_min(est)
-  if est >= 9000 then return 80 end
-  if est >= 3000 then return 40 end
-  if est >= 1000 then return 20 end
-  if est >= 300  then return 10 end
-  return 1
+--- Minimum per-column population before flushing a cluster, scaled with both
+--- the horde's estimated size and current evolution. Larger base thresholds
+--- prevent tiny 1-2 pop clusters; the evolution floor (50 × evo) ensures
+--- endgame clusters are always meaningfully large (≥50 at evo 1.0).
+local function horde_cluster_min(est, evo)
+  local base
+  if est >= 9000 then base = 80
+  elseif est >= 3000 then base = 50
+  elseif est >= 1000 then base = 30
+  elseif est >= 300  then base = 15
+  else base = 5 end
+  return math.max(base, math.floor(50 * (evo or 0)))
 end
 
 --- Spawn one burst as a broad WALL: split `count` across the front columns. Each
@@ -498,7 +535,7 @@ local function spawn_horde(surface, s, count, tier, tick)
   if count <= 0 or not s.origin then return end
   local cols = wall_columns(s, tick)
   local per = math.max(1, math.floor(count / #cols))
-  local min_pop = horde_cluster_min(s.est_size or 0)
+  local min_pop = horde_cluster_min(s.est_size or 0, s.evo or 0)
   s.column_buckets = s.column_buckets or {}
   s.active_groups = s.active_groups or {}
   for i, c in ipairs(cols) do
@@ -684,8 +721,10 @@ local function begin_active(s, surface, tick, dur, forced)
     s.column_targets[i + 1] = nearest_building(buildings, col_pos, center)
   end
 
-  local est = estimate_size(evolution(surface), dur)
+  local e_now = evolution(surface)
+  local est = estimate_size(e_now, dur)
   s.est_size = est  -- stored so spawn_horde can scale cluster density accordingly
+  s.evo = e_now    -- stored so spawn_horde can apply evolution-based cluster min
   start_warning(surface, s, origin, est)
   game.print("A horde of ~" .. est .. " zombies is descending on the factory from [gps=" ..
     math.floor(origin.x) .. "," .. math.floor(origin.y) .. "," .. surface.name .. "]!")
@@ -719,6 +758,7 @@ local function end_active(s, surface, tick, e)
   s.column_targets = nil  -- release precomputed targets
   s.column_buckets = nil  -- release per-column accumulator buckets
   s.est_size = nil
+  s.evo = nil
   s.pending_spawn = 0     -- discard any unspawned queue remainder
   s.warned = false
   s.next_event_tick = tick + horde.event_interval_ticks(e, opt_frequency())

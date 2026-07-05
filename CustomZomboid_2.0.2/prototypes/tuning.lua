@@ -32,9 +32,14 @@ local PUNCH_DAMAGE = 8
 
 -- Tiny collision so a crowd of zombies overlaps into a dense, intimidating mass.
 local COLLISION_SCALE = 0.2
--- Slower than vanilla — at /4, double-speed at night still reads below a vanilla
--- biter (see lib/night.lua header).
-local SPEED_DIVISOR = 4
+-- Biters (melee): half vanilla day speed so they can close the gap to turrets.
+-- Night speedup (+100% default) brings them to full vanilla speed at night.
+local BITER_SPEED_DIVISOR = 2
+-- Spitters (ranged): same speed divisor as biters — they need to reposition too.
+local SPITTER_SPEED_DIVISOR = 2
+-- Spitter attack range: vanilla ~15, hero turrets reach 18-27+. Set high enough
+-- that spitters can fire back before getting kited to death.
+local SPITTER_RANGE_MIN = 20
 -- Individually weak.
 local HEALTH_DIVISOR = 4
 -- Never lose the player's scent (R-BAL-3): effectively unbounded pursuit.
@@ -57,17 +62,25 @@ end
 ------------------------------------------------------- units (biters & spitters)
 -- The name match on "biter"/"spitter" deliberately ALSO catches the
 -- *-zomtorio-night variants from prototypes/night.lua, so day and night forms get
--- the same /4 speed treatment and the night/day ratio (1 + speedup) is preserved.
--- It does NOT catch the zomtorio-horde-* clusters (no "biter" in the name) — those
--- are tuned explicitly below so their script-managed health headroom is untouched.
+-- the same speed treatment and the night/day ratio (1 + speedup) is preserved.
+-- Spitter CLUSTERS (zomtorio-swarm-spitter-*) also contain "spitter" — they must be
+-- excluded or their max_health headroom (1000) gets divided by HEALTH_DIVISOR, leaving
+-- them at 250 and one-shottable by high-level hero turrets before the damage handler runs.
+local swarm_names = {}
+for _, n in ipairs(tiers.SWARM_ALL) do swarm_names[n] = true end
+
 for name, unit in pairs(data.raw.unit) do
-  if string.find(name, "biter") or string.find(name, "spitter") then
+  if swarm_names[name] then goto continue_unit end
+  local is_biter   = string.find(name, "biter")
+  local is_spitter = string.find(name, "spitter")
+  if is_biter or is_spitter then
     if unit.collision_box then
       unit.collision_box = scale_box(unit.collision_box, COLLISION_SCALE)
     end
 
     if unit.movement_speed then
-      unit.movement_speed = unit.movement_speed / SPEED_DIVISOR
+      local divisor = is_spitter and SPITTER_SPEED_DIVISOR or BITER_SPEED_DIVISOR
+      unit.movement_speed = unit.movement_speed / divisor
     end
 
     if unit.max_health then
@@ -82,7 +95,14 @@ for name, unit in pairs(data.raw.unit) do
     -- Relentless pursuit (R-BAL-3).
     unit.min_pursue_time = PURSUE_FOREVER
     unit.max_pursue_distance = PURSUE_FOREVER
+
+    -- Spitters: boost attack range so they can fire back against hero turrets
+    -- (base range ~15, hero turrets reach 18-27+).
+    if is_spitter and unit.attack_parameters then
+      unit.attack_parameters.range = math.max(unit.attack_parameters.range or 15, SPITTER_RANGE_MIN)
+    end
   end
+  ::continue_unit::
 end
 
 -- R-BAL-1: guarantee the basic zombie dies to a single punch at evo 1.0. The /4
@@ -121,11 +141,16 @@ end
 for _, cluster_name in pairs(tiers.SWARM_ALL) do
   local cluster = data.raw.unit[cluster_name]
   if cluster then
+    local is_spitter_cluster = string.find(cluster_name, "spitter")
+    local divisor = is_spitter_cluster and SPITTER_SPEED_DIVISOR or BITER_SPEED_DIVISOR
     if cluster.movement_speed then
-      cluster.movement_speed = cluster.movement_speed / SPEED_DIVISOR
+      cluster.movement_speed = cluster.movement_speed / divisor
     end
     if cluster.collision_box then
       cluster.collision_box = scale_box(cluster.collision_box, COLLISION_SCALE)
+    end
+    if is_spitter_cluster and cluster.attack_parameters then
+      cluster.attack_parameters.range = math.max(cluster.attack_parameters.range or 15, SPITTER_RANGE_MIN)
     end
   end
 end

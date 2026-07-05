@@ -9,7 +9,13 @@ mkdir -p "$DEPLOY_DIR"
 rm -f "$DEPLOY_DIR"/*.zip
 
 if command -v powershell.exe &>/dev/null; then
-    _pack() { powershell.exe -NoProfile -Command "Compress-Archive -Force -Path '$(wslpath -w "$1")' -DestinationPath '$(wslpath -w "$DEPLOY_DIR/${1}.zip")'"; }
+    # Convert Unix path to Windows path: cygpath for Git Bash, wslpath for WSL.
+    _towin() {
+        if command -v cygpath &>/dev/null; then cygpath -w "$1"
+        elif command -v wslpath &>/dev/null; then wslpath -w "$1"
+        else echo "$1"; fi
+    }
+    _pack() { powershell.exe -NoProfile -Command "Compress-Archive -Force -Path '$(_towin "$1")' -DestinationPath '$(_towin "$DEPLOY_DIR/${1}.zip")'"; }
 else
     _pack() { zip -r "$DEPLOY_DIR/${1}.zip" "$1"; }
 fi
