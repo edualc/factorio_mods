@@ -1,0 +1,12 @@
+{
+  "name": "CustomGlebaSoil",
+  "version": "1.0.0",
+  "title": "CustomGlebaSoil",
+  "author": "Claude Lehmann",
+  "factorio_version": "2.1",
+  "dependencies": [
+    "base >= 2.0",
+    "space-age >= 2.0"
+  ],
+  "description": "Allows placing overgrowth yumako and jellynut soil tiles anywhere on Gleba, not only on specific natural tiles."
+}

@@ -139,6 +139,16 @@ Makes all robots and belts completely immune to fire damage.
 
 ---
 
+### CustomGlebaSoil `1.0.0`
+Allows placing overgrowth yumako and jellynut soil anywhere on Gleba.
+
+**Original mod:** none — built from scratch
+
+**Changes from original:**
+- Removes the `tile_condition` whitelist from the `place_as_tile` field of both `overgrowth-yumako-soil` and `overgrowth-jellynut-soil` items; the base game restricts placement to a handful of natural wetland/lowland tiles, this mod removes that restriction so the soil can be placed on any tile
+
+---
+
 ## Credits
 
 All original mods and their concepts belong to their respective authors. These forks exist solely for personal use to bring the mods up to date with Factorio 2.1 and to add quality-of-life changes.
