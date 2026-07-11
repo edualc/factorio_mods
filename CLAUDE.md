@@ -89,3 +89,10 @@ Before committing any change, update @README.md to reflect what was changed.
 - New feature or fix → add or update the relevant bullet under the mod's **Changes from original** section
 - If the change spans multiple mods, update each affected section
 - Keep entries factual and specific (what changed and why), matching the tone and level of detail of the existing bullets
+
+### Versioned changelog format
+
+For mods that have moved to versioned sections (e.g. CustomZomboid from v2.0.3 onwards), group new changes under a `**vX.Y.Z:**` heading rather than appending to the flat list. The flat list above it is a historical record of pre-versioning changes — do not modify it.
+
+- Each new patch bump gets its own `**vX.Y.Z:**` section at the bottom of that mod's entry
+- The mod's header version (e.g. `### CustomZomboid \`2.0.5\``) must match `info.json`
