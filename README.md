@@ -38,7 +38,7 @@ Adds a basic RPG system to the game — XP gain, level-ups, and skills for the p
 
 ---
 
-### CustomZomboid `2.0.5`
+### CustomZomboid `2.0.6`
 Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infection spreads through your logistics network, and corpses reanimate. Requires Space Age.
 
 **Original mod:** [Zomboid](https://mods.factorio.com/mod/Zomboid) by **Martin Howarth**
@@ -103,6 +103,9 @@ Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infecti
 - Automatic 15-minute sweep and `/zomtorio-sweep` are both uncapped by default; sweep message now reports redirected cluster count, their total zombie population, and total stray units on the map
 - Horde map marker now shows `X / ~Y spawning` (live count vs estimated total) while the event is active, and `X remaining` once spawning ends
 - Removed horde approach-corridor path visualisation (it always printed a false "uncharted territory" error because the spawn origin is reliably 10 chunks into ungenerated terrain)
+
+**v2.0.6:**
+- Version bump to correct zip/folder labelling: previous deploys packaged the mod under the old folder name (`CustomZomboid_2.0.2`) so Factorio loaded it as v2.0.2 regardless of `info.json`; no code changes
 
 ---
 
