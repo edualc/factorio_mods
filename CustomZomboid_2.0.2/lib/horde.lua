@@ -112,6 +112,11 @@ local TELEGRAPH_LEAD_TICKS = DAY_TICKS  -- ~one day's notice
 -- tick's work stays bounded (the cap-aware spawner folds overflow into clusters).
 local TICK_PERIOD  = 60     -- the on_tick self-throttle
 local BURST_PERIOD = 60     -- one horde burst per second of an active event
+-- Periodic sweep: every GROUP_RESYNC_PERIOD ticks, re-command both the current
+-- event's column groups AND any wandering/stuck enemy units that lost their march
+-- command (e.g. from dissolved groups across past events). Uncapped: all stray
+-- units are redirected each sweep. /zomtorio-sweep runs the same logic on demand.
+local GROUP_RESYNC_PERIOD  = 54000  -- ~15 minutes (54000 / 3600 tps)
 local SWARM_BURST_BASE = 40 -- zombies per burst at intensity 1 / evolution 0
 local SWARM_BURST_CAP  = 600
 -- Max entities actually created per tick from the pending spawn queue. Bursts are
@@ -459,6 +464,22 @@ local function nearest_building(buildings, origin, center)
   return best or { x = center.x, y = center.y }
 end
 
+--- Sample the straight line from `from_pos` to `to_pos` for water tiles.
+--- Only checks points that fall in generated chunks (invalid tile => chunk not yet
+--- generated; we skip rather than reject, since the terrain might be passable once
+--- generated). Returns true if any sampled generated-chunk point is confirmed water.
+local function path_has_water(surface, from_pos, to_pos, samples)
+  samples = samples or 6
+  for i = 1, samples do
+    local t = i / (samples + 1)
+    local p = { x = from_pos.x + (to_pos.x - from_pos.x) * t,
+                y = from_pos.y + (to_pos.y - from_pos.y) * t }
+    local tile = surface.get_tile(p)
+    if tile and tile.valid and WATER_TILES[tile.name] then return true end
+  end
+  return false
+end
+
 --- An attack-march command that drives the horde from its spawn point onto the
 --- factory, fighting anything in the way (so it "advances" rather than idling out
 --- of player-scent range). Targets a FACTORY point, never a player.
@@ -554,7 +575,10 @@ local function spawn_horde(surface, s, count, tier, tick)
     -- Spawn WITHOUT a per-unit command (nil); the group owns movement. horde_member
     -- = true so the warning can track this horde's live population.
     local members = swarm.spawn(surface, c.pos, spawn_count, tier, util.ENEMY_FORCE, nil, nil, true) or {}
-    local cmd = c.target and march_command(c.target) or nil
+    -- Target the factory centre, not the nearest wall building. Targeting the wall
+    -- edge caused groups to satisfy attack_area's radius while still outside the
+    -- perimeter and idle there. The centre pulls them deep into the base.
+    local cmd = s.factory_center and march_command(s.factory_center) or nil
 
     -- Reuse the existing group for this column; only create a new one when it has
     -- dissolved (members all dead or disowned → group auto-destroys → .valid = false).
@@ -568,9 +592,10 @@ local function spawn_horde(surface, s, count, tier, tick)
       if ok and g then
         group = g
         s.active_groups[i] = group
-        if cmd then
-          pcall(function() group.set_command(cmd); group.start_moving() end)
-        end
+        -- Set the destination now so the group knows where to go, but don't call
+        -- start_moving() yet — the whole horde waits in gathering state until spawning
+        -- completes, then all columns march together (end_active issues start_moving).
+        if cmd then pcall(function() group.set_command(cmd) end) end
       end
     end
 
@@ -583,8 +608,7 @@ local function spawn_horde(surface, s, count, tier, tick)
       end
       s.debug_grouped = (s.debug_grouped or 0) + added  -- test hook: members grouped
     elseif cmd then
-      -- Fallback (group couldn't form): at least command the members directly so the
-      -- wave still advances rather than idling.
+      -- Fallback (group couldn't form): command members directly so they still advance.
       for _, e in ipairs(members) do
         if e and e.valid then pcall(function() e.commandable.set_command(cmd) end) end
       end
@@ -595,10 +619,12 @@ end
 
 --------------------------------------------------- persistent horde warning
 
---- Destroy the warning's map marker and drop the warning state.
+--- Destroy the warning's map marker, path lines, and drop the warning state.
 local function clear_warning(s)
   local w = s.warning
-  if w and w.marker and w.marker.valid then pcall(function() w.marker.destroy() end) end
+  if w and w.marker and w.marker.valid then
+    pcall(function() w.marker.destroy() end)
+  end
   s.warning = nil
 end
 
@@ -606,11 +632,11 @@ end
 --- the live count, so it shows on players' maps. Chart the area first so an incoming
 --- horde on the horizon is visible. All pcall-guarded (missing force / uncharted
 --- area degrade to no marker; the gps chat warning still fired at start).
-local function place_warning_marker(surface, w, pos)
+local function place_warning_marker(surface, w, pos, text)
   if w.marker and w.marker.valid then
     -- Update the existing tag in-place; avoid the destroy+create round-trip every call.
     pcall(function()
-      w.marker.text = "Horde: " .. (w.count or 0)
+      w.marker.text = text
       w.marker.position = pos
     end)
     return
@@ -622,7 +648,7 @@ local function place_warning_marker(surface, w, pos)
     pf.chart(surface, { { pos.x - 32, pos.y - 32 }, { pos.x + 32, pos.y + 32 } })
   end)
   local ok, tag = pcall(function()
-    return pf.add_chart_tag(surface, { position = pos, text = "Horde: " .. (w.count or 0) })
+    return pf.add_chart_tag(surface, { position = pos, text = text })
   end)
   if ok then w.marker = tag end
 end
@@ -631,8 +657,8 @@ end
 --- estimated incoming size and place the marker.
 local function start_warning(surface, s, origin, est)
   clear_warning(s)
-  s.warning = { centroid = { x = origin.x, y = origin.y }, count = est, est = est }
-  place_warning_marker(surface, s.warning, s.warning.centroid)
+  s.warning = { centroid = { x = origin.x, y = origin.y }, count = 0, est = est }
+  place_warning_marker(surface, s.warning, s.warning.centroid, "Horde: 0 / ~" .. est .. " spawning")
 end
 
 --- Drive the persistent warning (~once a second from on_tick), INDEPENDENT of
@@ -648,15 +674,18 @@ end
 local function update_warning(surface, s)
   local w = s.warning
   if not w then return end
+
   local count, centroid = swarm.horde_population()
   if centroid then w.centroid = centroid end
+  w.count = count
+  local text
   if s.active then
-    w.count = math.max(count, w.est or count)
+    text = "Horde: " .. count .. " / ~" .. (w.est or count) .. " spawning"
   else
-    w.count = count
     if count < WARNING_MIN_COUNT then clear_warning(s); return end
+    text = "Horde: " .. count .. " remaining"
   end
-  place_warning_marker(surface, w, w.centroid)
+  place_warning_marker(surface, w, w.centroid, text)
 end
 
 --- Estimate the incoming horde size (for the chat warning): per-burst count times
@@ -687,15 +716,39 @@ local function begin_active(s, surface, tick, dur, forced)
   swarm.clear_horde_members()
 
   local center, radius, buildings = factory_reference(surface, tick)
-  local angle = angle_override or ((tick * 2.3999632) % (2 * math.pi))  -- per-event direction
-  local dist = radius + HORDE_OFFSET                 -- beyond the factory edge
-  local origin = { x = center.x + math.cos(angle) * dist, y = center.y + math.sin(angle) * dist }
-  -- Redirect origin to land before placing the warning marker and printing the GPS
-  -- announcement — without this the marker and chat message point at water even when
-  -- every column is later successfully redirected by spawn_horde.
-  if is_water_tile(surface, origin) then
-    local land = util.find_land_near(surface, origin, 128, 16)
-    if land then origin = land end
+  local base_angle = angle_override or ((tick * 2.3999632) % (2 * math.pi))
+  local dist = radius + HORDE_OFFSET
+
+  -- Try up to 8 origin angles (45° apart) to find one whose straight-line path to
+  -- the factory does not cross confirmed water. Ungenerated chunks are skipped in
+  -- path_has_water — we only reject an angle if we KNOW a tile is water. Falls back
+  -- to the base angle if all eight are blocked. angle_override (test hook) skips
+  -- rotation to keep tests deterministic.
+  local angle, origin
+  for attempt = 0, 7 do
+    local try_angle = base_angle + attempt * (math.pi / 4)
+    local try_origin = {
+      x = center.x + math.cos(try_angle) * dist,
+      y = center.y + math.sin(try_angle) * dist,
+    }
+    if is_water_tile(surface, try_origin) then
+      local land = util.find_land_near(surface, try_origin, 128, 16)
+      if land then try_origin = land end
+    end
+    if not path_has_water(surface, try_origin, center) then
+      angle, origin = try_angle, try_origin
+      break
+    end
+    if angle_override then break end  -- test hook: never rotate away from the pinned angle
+  end
+  -- Fallback when all 8 angles are blocked (or test override is in effect).
+  if not origin then
+    angle = base_angle
+    origin = { x = center.x + math.cos(angle) * dist, y = center.y + math.sin(angle) * dist }
+    if is_water_tile(surface, origin) then
+      local land = util.find_land_near(surface, origin, 128, 16)
+      if land then origin = land end
+    end
   end
   s.origin = origin
   s.target = nearest_building(buildings, origin, center)  -- nearest base edge
@@ -726,6 +779,7 @@ local function begin_active(s, surface, tick, dur, forced)
   s.est_size = est  -- stored so spawn_horde can scale cluster density accordingly
   s.evo = e_now    -- stored so spawn_horde can apply evolution-based cluster min
   start_warning(surface, s, origin, est)
+
   game.print("A horde of ~" .. est .. " zombies is descending on the factory from [gps=" ..
     math.floor(origin.x) .. "," .. math.floor(origin.y) .. "," .. surface.name .. "]!")
 end
@@ -752,6 +806,16 @@ local function end_active(s, surface, tick, e)
       end
     end
   end
+  -- All spawning is done — order every column group to march together now.
+  if s.active_groups and s.factory_center then
+    local cmd = march_command(s.factory_center)
+    for _, group in ipairs(s.active_groups) do
+      if group and group.valid then
+        pcall(function() group.set_command(cmd); group.start_moving() end)
+      end
+    end
+  end
+
   s.active, s.active_start, s.period_end_tick, s.forced_until = false, nil, nil, nil
   s.origin, s.target = nil, nil
   s.active_groups = nil   -- release per-column group references
@@ -762,6 +826,49 @@ local function end_active(s, surface, tick, e)
   s.pending_spawn = 0     -- discard any unspawned queue remainder
   s.warned = false
   s.next_event_tick = tick + horde.event_interval_ticks(e, opt_frequency())
+end
+
+--------------------------------------------------------------------- sweep
+
+--- Re-command both the current event's column groups (if active) and up to
+--- WANDER_REDIRECT_CAP wandering/stuck enemy units from dissolved past-event groups,
+--- then announce how many were redirected. Shared by the periodic on_tick sweep and
+--- the /zomtorio-sweep command.
+-- cap=nil means uncapped; an explicit number limits how many unit entities are redirected.
+local function do_sweep(surface, s, tick, cap)
+  local sweep_center = factory_reference(surface, tick)
+
+  if s.active_groups then
+    local cmd = march_command(sweep_center)
+    for _, group in ipairs(s.active_groups) do
+      if group and group.valid then
+        pcall(function() group.set_command(cmd); group.start_moving() end)
+      end
+    end
+  end
+
+  local total_stray = surface.count_entities_filtered {
+    force = util.ENEMY_FORCE, type = "unit",
+  }
+  if total_stray == 0 then return end
+  local query = { force = util.ENEMY_FORCE, type = "unit" }
+  if cap then query.limit = cap end
+  local wanderers = surface.find_entities_filtered(query)
+  local cmd = march_command(sweep_center)
+  local redirected, redirected_pop = 0, 0
+  local sw = storage.zomtorio and storage.zomtorio.swarm
+  for _, unit in ipairs(wanderers) do
+    if unit and unit.valid then
+      pcall(function() unit.commandable.set_command(cmd) end)
+      redirected = redirected + 1
+      local rec = sw and sw[unit.unit_number]
+      redirected_pop = redirected_pop + (rec and rec.pop or 1)
+    end
+  end
+  if redirected > 0 then
+    game.print("Zomtorio: redirected " .. redirected .. " cluster(s) (~" .. redirected_pop
+      .. " zombies) toward the factory. " .. total_stray .. " stray unit(s) total on map.")
+  end
 end
 
 --------------------------------------------------------------------- public
@@ -867,6 +974,11 @@ function horde.on_tick(event)
     end
   end
 
+  ------------------------------------------------ periodic wander sweep (R-GEN-5b)
+  if tick % GROUP_RESYNC_PERIOD == 0 then
+    do_sweep(surface, s, tick)
+  end
+
   -- The persistent warning runs EVERY sweep, independent of the on/off setting and
   -- of whether spawning is still going — so it tracks the horde's centroid + count
   -- and survives well past the spawning period, retiring only when the horde thins
@@ -907,6 +1019,17 @@ function horde.force_event(minutes)
   s.next_event_tick = nil
   return dur
 end
+
+--- Force the wander sweep to run immediately (the /zomtorio-sweep command).
+--- `cap` limits how many unit entities are redirected; nil = uncapped (counts entities, not population).
+function horde.force_sweep(cap)
+  local surface = game and game.surfaces and game.surfaces[util.HOME_SURFACE]
+  if not (surface and surface.valid and planets.is_active(surface)) then return 0 end
+  local s = state()
+  local tick = game and game.tick or 0
+  do_sweep(surface, s, tick, cap)
+end
+
 
 --------------------------------------------------------------------- test API
 

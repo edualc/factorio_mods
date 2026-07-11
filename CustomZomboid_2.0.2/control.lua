@@ -108,6 +108,7 @@ script.on_event(defines.events.on_trigger_created_entity, function(event)
   swarm.on_trigger_created_entity(event)
 end)
 
+
 ------------------------------------------------------------------- nest output
 -- An engine spawner emitted a unit; route it through the same cap so saturated
 -- nests form local swarm clusters instead of unlimited loose individuals. Guarded
@@ -193,6 +194,15 @@ commands.add_command(
     local dur = horde.force_event(mins)
     game.print("Zomtorio: a horde is attacking now (" ..
       (math.floor(dur / 3600 * 10) / 10) .. " min). Defend!")
+  end
+)
+
+commands.add_command(
+  "zomtorio-sweep",
+  "Re-command stuck/wandering zombies toward the factory. Optional: max entities (default 300).",
+  function(cmd)
+    local cap = tonumber(cmd.parameter)
+    horde.force_sweep(cap)
   end
 )
 

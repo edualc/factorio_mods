@@ -15,14 +15,16 @@ if command -v powershell.exe &>/dev/null; then
         elif command -v wslpath &>/dev/null; then wslpath -w "$1"
         else echo "$1"; fi
     }
-    _pack() { powershell.exe -NoProfile -Command "Compress-Archive -Force -Path '$(_towin "$1")' -DestinationPath '$(_towin "$DEPLOY_DIR/${1}.zip")'"; }
+    # $1 = source dir, $2 = output zip name (without .zip)
+    _pack() { powershell.exe -NoProfile -Command "Compress-Archive -Force -Path '$(_towin "$1")' -DestinationPath '$(_towin "$DEPLOY_DIR/$2.zip")'"; }
 else
-    _pack() { zip -r "$DEPLOY_DIR/${1}.zip" "$1"; }
+    _pack() { zip -r "$DEPLOY_DIR/$2.zip" "$1"; }
 fi
 
 for dir in */; do
     dir="${dir%/}"
     [[ -f "$dir/info.json" ]] || continue
-    _pack "$dir"
-    echo "Packed $DEPLOY_DIR/${dir}.zip"
+    name=$(python3 -c "import json; d=json.load(open('$dir/info.json')); print(d['name']+'_'+d['version'])")
+    _pack "$dir" "$name"
+    echo "Packed $DEPLOY_DIR/${name}.zip"
 done
