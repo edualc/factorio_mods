@@ -20,12 +20,25 @@ if command -v python3 &>/dev/null; then
         python3 -c "
 import os, sys, zipfile
 src, name, dest = sys.argv[1], sys.argv[2], sys.argv[3]
+# Collect and sort entries for deterministic archive order - os.walk order is
+# filesystem-dependent and differs between machines/OSes.
+entries = []
+for root, _, files in os.walk(src):
+    for f in sorted(files):
+        full = os.path.join(root, f)
+        rel = os.path.relpath(full, src).replace(os.sep, '/')
+        entries.append((full, rel))
+entries.sort(key=lambda x: x[1])
 with zipfile.ZipFile(dest, 'w', zipfile.ZIP_DEFLATED) as z:
-    for root, _, files in os.walk(src):
-        for f in files:
-            full = os.path.join(root, f)
-            rel = os.path.relpath(full, src).replace(os.sep, '/')
-            z.write(full, arcname=name + '/' + rel)
+    for full, rel in entries:
+        # Fixed date_time strips file mtimes from zip metadata. Without this,
+        # git checkouts on different machines produce different mtimes ->
+        # different zip checksums -> Factorio \"mod contents differ\" errors
+        # even when the actual mod code is identical.
+        zi = zipfile.ZipInfo(name + '/' + rel, date_time=(1980, 1, 1, 0, 0, 0))
+        zi.compress_type = zipfile.ZIP_DEFLATED
+        with open(full, 'rb') as fh:
+            z.writestr(zi, fh.read())
 " "$1" "$2" "$DEPLOY_DIR/${2}.zip"
     }
 else
