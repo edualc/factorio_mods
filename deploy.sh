@@ -23,7 +23,12 @@ _pack() {
         local tmp
         tmp=$(mktemp -d)
         cp -r "$src" "$tmp/$name"
-        powershell.exe -NoProfile -Command "Compress-Archive -Force -Path '$(_towin "$tmp/$name")' -DestinationPath '$(_towin "$DEPLOY_DIR/$name.zip")'"
+        # Compress-Archive stores entries with backslash path separators on Windows,
+        # which violates the zip spec and breaks non-Windows readers (e.g. a Linux
+        # dedicated server reports "info.json not found" inside an otherwise-valid
+        # archive). System.IO.Compression.ZipFile always writes '/' separators.
+        rm -f "$DEPLOY_DIR/$name.zip"
+        powershell.exe -NoProfile -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::CreateFromDirectory('$(_towin "$tmp")', '$(_towin "$DEPLOY_DIR/$name.zip")')"
         rm -rf "$tmp"
     else
         ln -sfn "$(realpath "$src")" "$name"
