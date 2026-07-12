@@ -38,7 +38,7 @@ Adds a basic RPG system to the game — XP gain, level-ups, and skills for the p
 
 ---
 
-### CustomZomboid `2.0.2`
+### CustomZomboid `2.0.7`
 Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infection spreads through your logistics network, and corpses reanimate. Requires Space Age.
 
 **Original mod:** [Zomboid](https://mods.factorio.com/mod/Zomboid) by **Martin Howarth**
@@ -87,7 +87,28 @@ Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infecti
 - Fixed lag when horde spawn corridors overlap water: `find_non_colliding_position` avoids entity bounding-box collisions but is tile-unaware, so it could return a water-tile position near the coast. Two-level fix: at the column level, `spawn_horde` now redirects water columns to the nearest land tile (up to 128 tiles away) via `util.find_land_near` rather than skipping them; at the entity level, a `safe_place` helper in `swarm.lua` validates the resolved position and retries with progressively wider scans (32 tiles → 128 tiles, 16-tile steps — analogous to picking a fresh horde spawn origin) before giving up. `WATER_TILES`, `is_water_tile`, and `find_land_near` are shared via `util.lua`
 - Horde swarm clusters scale in density with estimated horde size and evolution: per-column drain-tick allotments accumulate in per-column buckets and only flush once the bucket reaches the size threshold (5 for <300, 15 for ≥300, 30 for ≥1000, 50 for ≥3000, 80 for ≥9000); evolution sets a floor of `⌊50 × evo⌋` so endgame clusters are always ≥50 members regardless of horde size. Partial buckets are flushed when the event ends so no zombies are silently discarded
 
-**Reverted to v2.0.2 baseline:** v2.0.3–v2.0.7 (horde marching/sweep improvements, corpse/laser tweaks, the zip/folder-labelling fix, and a `factory_reference` cache desync fix) were rolled back — v2.0.3's unconditional 15-minute sweep and `/zomtorio-sweep` called `factory_reference` regardless of horde activity, which exposed a pre-existing module-local-cache desync (`factory_cache_*` in `horde.lua`, same root cause as the already-fixed `fold_cache`) far more often than v2.0.2 ever did, making coop unplayable. v2.0.2 is the last version confirmed stable in multiplayer.
+**v2.0.3:**
+- Fixed hordes accumulating at spawn without marching: column unit groups now have their march command re-issued on every burst so they keep advancing after reaching a target area or entering distraction-fight mode between bursts; a 15-minute periodic sweep re-commands both active column groups AND up to 300 wandering/stuck enemy units from dissolved past-event groups (one `find_entities_filtered` + capped `set_command` calls — trivially cheap), and prints a notification when stray zombies are redirected
+- Fixed horde arriving as several small waves instead of one mass: per-burst re-command now checks the unit group's state and only re-issues the march order when the group is idle (`finished` or `wander_in_group`); interrupting an actively moving or fighting group caused it to re-gather at the spawn origin, producing the split-wave effect
+- Fixed horde stopping at the factory walls: march command now targets the factory centre rather than the nearest wall building; targeting the wall edge allowed groups to satisfy `attack_area`'s 24-tile arrival radius while still outside the perimeter
+- Fixed hordes spawning stranded behind large lakes: `begin_active` now tries up to 8 origin angles (45° apart) and picks the first whose straight-line path to the factory contains no confirmed water tiles; ungenerated chunks are skipped rather than rejected so the check stays cheap (at most 48 `get_tile` calls per event). Falls back to the base angle if all eight are water-blocked
+- Console command `/zomtorio-sweep` to force the wander sweep immediately — re-commands stuck or wandering zombies toward the factory without waiting for the 15-minute periodic sweep
+
+**v2.0.4:**
+- Horde now spawns as a full wave before marching: unit groups gather during the entire spawning period with their march destination pre-set but `start_moving()` deferred until `end_active` fires, so all columns advance together as one mass rather than trickling in burst-by-burst
+- `/zomtorio-sweep` accepts an optional entity cap (e.g. `/zomtorio-sweep 500`); with no argument both the command and the automatic 15-minute sweep redirect all stray units uncapped. Count is number of entities, not population — three clusters of 100 each count as 3, not 300
+- Laser turret kills no longer leave reanimatable corpses: removed `laser` from the `CORPSE_DAMAGE` whitelist in `corpses.lua` — only physical damage (gun turrets, player melee) now spawns corpses
+
+**v2.0.5:**
+- Automatic 15-minute sweep and `/zomtorio-sweep` are both uncapped by default; sweep message now reports redirected cluster count, their total zombie population, and total stray units on the map
+- Horde map marker now shows `X / ~Y spawning` (live count vs estimated total) while the event is active, and `X remaining` once spawning ends
+- Removed horde approach-corridor path visualisation (it always printed a false "uncharted territory" error because the spawn origin is reliably 10 chunks into ungenerated terrain)
+
+**v2.0.6:**
+- Version bump to correct zip/folder labelling: previous deploys packaged the mod under the old folder name (`CustomZomboid_2.0.2`) so Factorio loaded it as v2.0.2 regardless of `info.json`; no code changes
+
+**v2.0.7:**
+- Fixed multiplayer desync: `factory_reference`'s 5-minute result cache (`factory_cache_tick/center/radius/buildings` in `horde.lua`) was module-local instead of stored in `storage`, so a freshly-joined client's Lua VM started with a cold cache while the host's stayed warm — the two could return different factory center/radius/buildings for the same tick whenever a cached read raced a join. Same root cause class as the `fold_cache` fix in `swarm.lua` (v2.0.2). Exposure increased sharply in v2.0.3 with the unconditional 15-minute periodic sweep and the on-demand `/zomtorio-sweep` command, both of which call `factory_reference` regardless of whether a horde event is active — making the stale-cache-vs-cold-cache race far more likely to be hit in a real session. Cache now lives in `storage.zomtorio.factory_cache`, identical on all clients
 
 ---
 
