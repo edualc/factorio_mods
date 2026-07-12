@@ -1,4 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.0.2
+Date: 2026-07-03
+  Bugfixes:
+    - Fixed leftover safezone GUI button and render circles (green/cyan) persisting after the
+      safezone feature was removed in a previous update - on_configuration_changed now recursively
+      scans player.gui.top for the button (found and destroyed wherever it ended up in the GUI
+      tree) and destroys any still-valid safezone render objects, then clears the stale storage.
+    - Version bumped so Factorio unconditionally fires on_configuration_changed on next load,
+      ensuring saves from before this fix actually run the cleanup above.
+---------------------------------------------------------------------------------------------------
 Version: 2.0.1
 Date: 2026-06-26
   Bugfixes:
