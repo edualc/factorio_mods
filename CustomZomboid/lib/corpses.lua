@@ -18,11 +18,11 @@ local corpses = {}
 
 local CORPSE_ITEM = "zomtorio-corpse"
 
--- Only physical damage leaves a corpse that can reanimate (R-CORPSE-4).
--- Laser, fire, explosion, electric, poison, etc. destroy the zombie utterly.
+-- Physical and laser damage leave a corpse that can reanimate (R-CORPSE-4).
+-- Fire, explosion, electric, poison, etc. destroy the zombie utterly.
 -- Whitelist is safer than a blacklist: unknown/modded damage types also leave
 -- no corpse by default.
-local CORPSE_DAMAGE = { physical = true }
+local CORPSE_DAMAGE = { physical = true, laser = true }
 
 -- Test-only override of the bot-collection setting. Runtime-global settings can
 -- only be written by their owning mod, so the test harness (a separate mod) can't
