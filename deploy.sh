@@ -8,23 +8,25 @@ cd "$SCRIPT_DIR"
 mkdir -p "$DEPLOY_DIR"
 rm -f "$DEPLOY_DIR"/*
 
-if command -v powershell.exe &>/dev/null; then
-    # Convert Unix path to Windows path: cygpath for Git Bash, wslpath for WSL.
-    _towin() {
-        if command -v cygpath &>/dev/null; then cygpath -w "$1"
-        elif command -v wslpath &>/dev/null; then wslpath -w "$1"
-        else echo "$1"; fi
-    }
+# On Windows, both PowerShell's Compress-Archive AND .NET's
+# System.IO.Compression.ZipFile write entries with backslash path separators (verified
+# against the zip's raw bytes, not a reader that may silently normalise on display) -
+# that violates the zip spec and breaks non-Windows readers (e.g. a Linux dedicated
+# server reports "info.json not found" inside an otherwise-valid archive). Python's
+# zipfile.write() with an explicit forward-slash arcname is the one method confirmed
+# to write correct bytes, so it's used whenever python3 is available.
+if command -v python3 &>/dev/null; then
     _pack() {
-        local tmp
-        tmp=$(mktemp -d)
-        cp -r "$1" "$tmp/"
-        # Compress-Archive stores entries with backslash path separators on Windows,
-        # which violates the zip spec and breaks non-Windows readers (e.g. a Linux
-        # dedicated server reports "info.json not found" inside an otherwise-valid
-        # archive). System.IO.Compression.ZipFile always writes '/' separators.
-        powershell.exe -NoProfile -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::CreateFromDirectory('$(_towin "$tmp")', '$(_towin "$DEPLOY_DIR/${1}.zip")')"
-        rm -rf "$tmp"
+        python3 -c "
+import os, sys, zipfile
+src, name, dest = sys.argv[1], sys.argv[2], sys.argv[3]
+with zipfile.ZipFile(dest, 'w', zipfile.ZIP_DEFLATED) as z:
+    for root, _, files in os.walk(src):
+        for f in files:
+            full = os.path.join(root, f)
+            rel = os.path.relpath(full, src).replace(os.sep, '/')
+            z.write(full, arcname=name + '/' + rel)
+" "$1" "$1" "$DEPLOY_DIR/${1}.zip"
     }
 else
     _pack() { zip -r "$DEPLOY_DIR/${1}.zip" "$1"; }
