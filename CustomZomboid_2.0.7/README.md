@@ -1,4 +1,4 @@
-# CustomZomboid `2.0.2`
+# CustomZomboid `2.0.7`
 
 Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infection spreads through your logistics network, and corpses reanimate. Requires Space Age.
 
