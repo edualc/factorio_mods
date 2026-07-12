@@ -38,7 +38,7 @@ Adds a basic RPG system to the game — XP gain, level-ups, and skills for the p
 
 ---
 
-### CustomZomboid `2.0.6`
+### CustomZomboid `2.0.7`
 Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infection spreads through your logistics network, and corpses reanimate. Requires Space Age.
 
 **Original mod:** [Zomboid](https://mods.factorio.com/mod/Zomboid) by **Martin Howarth**
@@ -106,6 +106,9 @@ Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infecti
 
 **v2.0.6:**
 - Version bump to correct zip/folder labelling: previous deploys packaged the mod under the old folder name (`CustomZomboid_2.0.2`) so Factorio loaded it as v2.0.2 regardless of `info.json`; no code changes
+
+**v2.0.7:**
+- Fixed multiplayer desync: `factory_reference`'s 5-minute result cache (`factory_cache_tick/center/radius/buildings` in `horde.lua`) was module-local instead of stored in `storage`, so a freshly-joined client's Lua VM started with a cold cache while the host's stayed warm — the two could return different factory center/radius/buildings for the same tick whenever a cached read raced a join. Same root cause class as the `fold_cache` fix in `swarm.lua` (v2.0.2). Exposure increased sharply in v2.0.3 with the unconditional 15-minute periodic sweep and the on-demand `/zomtorio-sweep` command, both of which call `factory_reference` regardless of whether a horde event is active — making the stale-cache-vs-cold-cache race far more likely to be hit in a real session. Cache now lives in `storage.zomtorio.factory_cache`, identical on all clients
 
 ---
 

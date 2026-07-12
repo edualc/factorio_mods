@@ -130,9 +130,10 @@ local SPAWN_PER_TICK = 50
 -- 5 minutes is long enough to amortise manual burst-testing; short enough that the
 -- factory can grow meaningfully between scheduled events (which are days apart).
 local FACTORY_CACHE_TTL = 18000
--- Module-level cache vars (reset on game load; first call after load does a real scan).
-local factory_cache_tick = -math.huge
-local factory_cache_center, factory_cache_radius, factory_cache_buildings
+-- Stored in storage.zomtorio.factory_cache (NOT module-local): a module-local cache
+-- would go cold on a freshly-joined client's Lua VM while staying warm on the host,
+-- so the two could return different center/radius/buildings for the same tick and
+-- desync (see swarm.lua's fold_cache for the same pattern, fixed the same way).
 
 -- Night-escalation baseline (R-GEN-4): a much smaller trickle on ordinary nights
 -- (when no event is active), so nights are tenser than days but clearly below a
@@ -419,8 +420,10 @@ local function factory_reference(surface, tick)
            factory_override.buildings or {}
   end
   tick = tick or (game and game.tick or 0)
-  if factory_cache_center and (tick - factory_cache_tick) < FACTORY_CACHE_TTL then
-    return factory_cache_center, factory_cache_radius, factory_cache_buildings
+  storage.zomtorio = storage.zomtorio or {}
+  local fc = storage.zomtorio.factory_cache
+  if fc and (tick - fc.tick) < FACTORY_CACHE_TTL then
+    return fc.center, fc.radius, fc.buildings
   end
   local positions = {}
   local sx, sy, n = 0, 0, 0
@@ -445,10 +448,7 @@ local function factory_reference(surface, tick)
     local d = math.sqrt(dx * dx + dy * dy)
     if d > radius then radius = d end
   end
-  factory_cache_tick = tick
-  factory_cache_center = center
-  factory_cache_radius = radius
-  factory_cache_buildings = positions
+  storage.zomtorio.factory_cache = { tick = tick, center = center, radius = radius, buildings = positions }
   return center, radius, positions
 end
 
@@ -1044,6 +1044,7 @@ function horde.reset_state()
   angle_override = nil
   storage.zomtorio = storage.zomtorio or {}
   if storage.zomtorio.horde then clear_warning(storage.zomtorio.horde) end
+  storage.zomtorio.factory_cache = nil
   storage.zomtorio.horde = {
     next_event_tick = (game and game.tick or 0)
       + horde.event_interval_ticks(0, 1.0),
