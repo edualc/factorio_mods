@@ -5,7 +5,7 @@ data:extend(
             name = "lavafill",
             energy_required = 1,
             enabled = false,
-            category = "crafting-with-fluid",
+            categories = {"crafting-with-fluid"},
             ingredients = {
                 {type = "fluid", name = "lava", amount = 200}
             },
