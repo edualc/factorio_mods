@@ -1,0 +1,12 @@
+{
+    "name": "CustomGlebaSoilAnywhere",
+    "version": "2.1.0",
+    "title": "CustomGlebaSoilAnywhere",
+    "author": "Sauravisus",
+    "dependencies": [
+		"base >= 2.1",
+		"space-age >= 2.1"
+    ],
+    "description": "Annoyed that you can't place your newly made artificial soil anywhere on Gleba? Well now you can!",
+    "factorio_version": "2.1"
+}
