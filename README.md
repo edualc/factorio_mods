@@ -155,13 +155,14 @@ Allows placing lava just like landfill.
 
 ---
 
-### CustomGlebaSoilAnywhere `2.1.0`
-Removes placement restrictions for artificial (and overgrowth) yumako/jellynut soil on Gleba.
+### CustomGlebaSoilAnywhere `2.1.1`
+Removes placement restrictions for Overgrowth yumako/jellynut soil on Gleba. Plain artificial soil keeps the base game's default restriction.
 
 **Original mod:** [Gleba Soil Anywhere](https://mods.factorio.com/mod/gleba-soil-anywhere) by **Sauravisus**
 
 **Changes from original:**
 - Ported to Factorio 2.1: bumped `factorio_version` and dependency floors from `2.0`/`2.0.2` to `2.1`; no prototype code changes needed
+- Restricted unrestricted placement to only the Overgrowth soil variants; the plain artificial soil variants were dropped and keep the base game's default tile restriction
 
 ---
 

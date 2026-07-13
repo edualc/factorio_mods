@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.1.1
+Date: 2026-07-13
+  Changes:
+    - Only the Overgrowth soil variants (jellynut, yumako) can be placed anywhere on Gleba now.
+      The plain artificial soil variants keep the base game's default tile restriction.
+---------------------------------------------------------------------------------------------------
 Version: 2.1.0
 Date: 2026-07-13
   Changes:
