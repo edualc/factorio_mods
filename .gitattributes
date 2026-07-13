@@ -1,0 +1,10 @@
+# Normalize all text files to LF on checkout, regardless of platform.
+# Without this, Windows git checkouts produce CRLF line endings, which changes
+# the zip checksums produced by deploy.sh and triggers Factorio's
+# "mod contents are different even though versions are the same" error in MP.
+* text=auto eol=lf
+
+# Treat binary assets as binary — no line-ending conversion.
+*.png binary
+*.jpg binary
+*.ogg binary
