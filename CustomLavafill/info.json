@@ -3,7 +3,7 @@
   "version": "2.1.1",
   "factorio_version": "2.1",
   "title": "CustomLavafill",
-  "author": "Junsung Cho",
+  "author": "Akki",
   "homepage": "",
   "description": "Allows the placement of lava just like landfill.",
   "dependencies": [

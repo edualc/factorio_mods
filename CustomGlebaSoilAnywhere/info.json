@@ -2,7 +2,7 @@
     "name": "CustomGlebaSoilAnywhere",
     "version": "2.1.1",
     "title": "CustomGlebaSoilAnywhere",
-    "author": "Sauravisus",
+    "author": "Akki",
     "dependencies": [
 		"base >= 2.1",
 		"space-age >= 2.1"
