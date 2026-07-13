@@ -1,4 +1,13 @@
 ﻿---------------------------------------------------------------------------------------------------
+Version: 2.1.1
+Date: 2026-07-13
+  Bugfixes:
+    - Fixed generated hero-turret recipes silently landing in the default "crafting" category
+      instead of the source turret's actual recipe category: RecipePrototype's "category" field
+      was merged into a "categories" array in Factorio 2.1, so copying turret.recipe.category
+      (no longer present on the source prototype) silently produced nil instead of raising an
+      error. Now copies turret.recipe.categories instead.
+---------------------------------------------------------------------------------------------------
 Version: 2.1.0
 Date: 2026-06-30
   Changes:
