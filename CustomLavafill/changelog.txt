@@ -1,0 +1,7 @@
+---------------------------------------------------------------------------------------------------
+Version: 2.1.0
+Date: 2026-07-13
+  Changes:
+    - Forked as CustomLavafill, ported to Factorio 2.1 (factorio_version and dependency floors
+      bumped from 2.0 to 2.1; no prototype code changes needed).
+---------------------------------------------------------------------------------------------------

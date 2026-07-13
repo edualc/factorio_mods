@@ -1,0 +1,13 @@
+{
+  "name": "CustomLavafill",
+  "version": "2.1.0",
+  "factorio_version": "2.1",
+  "title": "CustomLavafill",
+  "author": "Junsung Cho",
+  "homepage": "",
+  "description": "Allows the placement of lava just like landfill.",
+  "dependencies": [
+    "base >= 2.1",
+    "space-age >= 2.1"
+  ]
+}

@@ -145,6 +145,16 @@ Makes all robots and belts completely immune to fire damage.
 
 ---
 
+### CustomLavafill `2.1.0`
+Allows placing lava just like landfill.
+
+**Original mod:** [Lavafill](https://mods.factorio.com/mod/lavafill) by **Junsung Cho**
+
+**Changes from original:**
+- Ported to Factorio 2.1: bumped `factorio_version` and dependency floors from `2.0` to `2.1`; no prototype code changes needed
+
+---
+
 ## Credits
 
 All original mods and their concepts belong to their respective authors. These forks exist solely for personal use to bring the mods up to date with Factorio 2.1 and to add quality-of-life changes.
