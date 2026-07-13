@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.1.2
+Date: 2026-07-13
+  Bugfixes:
+    - Fixed rpg_fireaball and rpg_hadouken splash damage hitting the caster's own
+      construction/logistic/combat robots. Both spells' area splash now uses
+      force = "enemy" so only forces that would attack the caster's force are hit -
+      robots and other friendly entities are no longer caught in the blast.
+---------------------------------------------------------------------------------------------------
 Version: 2.1.1
   Changes:
     - Ported to factorio 2.1

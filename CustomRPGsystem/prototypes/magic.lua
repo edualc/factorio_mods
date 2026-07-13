@@ -142,6 +142,11 @@ data:extend({
             {
               type = "area",
               radius = 5,
+              -- Only hit forces that would attack the caster's force, so the splash
+              -- doesn't damage the caster's own construction/logistic/combat robots
+              -- (or the caster themselves - character splash is separately mitigated
+              -- by the natural-armor recovery in control.lua's on_entity_damaged).
+              force = "enemy",
               action_delivery =
               {
                 type = "instant",
@@ -238,6 +243,11 @@ data:extend({
             {
               type = "area",
               radius = 7,
+              -- Only hit forces that would attack the caster's force, so the splash
+              -- doesn't damage the caster's own construction/logistic/combat robots
+              -- (or the caster themselves - character splash is separately mitigated
+              -- by the natural-armor recovery in control.lua's on_entity_damaged).
+              force = "enemy",
               action_delivery =
               {
                 type = "instant",
