@@ -201,6 +201,7 @@ Handheld weapons and power armor equipment that level up through kills, gaining 
 
 **v1.0.0:**
 - Initial release
+- Fixed mod failing to load: in Factorio 2.x, `active-defense-equipment` is not automatically registered as an item — the base game ships a separate `type = "item"` prototype with `place_as_equipment_result` for each equipment piece. `data-final-fixes.lua` now creates both the equipment prototype and the matching item prototype when generating personal-tesla-defense-equipment and all ranked equipment variants
 
 ---
 
