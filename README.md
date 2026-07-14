@@ -177,7 +177,7 @@ Removes placement restrictions for Overgrowth yumako/jellynut soil on Gleba. Pla
 
 ---
 
-### CustomHeroWeapons `1.0.0`
+### CustomHeroWeapons `1.0.1`
 Handheld weapons and power armor equipment that level up through kills, gaining fire rate, range, and damage bonuses at each rank. Includes a new Personal Tesla Defense equipment module.
 
 **Original concept:** New mod (no upstream)
@@ -187,11 +187,13 @@ Handheld weapons and power armor equipment that level up through kills, gaining 
 - Equipment: Personal Laser Defense, Personal Tesla Defense (new, Space Age)
 
 **Rank system:**
-- Kills with a weapon are tracked per player per weapon type in `storage`
+- Gun kills are tracked per player per weapon type; equipment kills are tracked per armor grid slot
 - Thresholds default to 50 / 250 / 1000 kills for ranks 2, 3, 4 (configurable via mod settings)
 - On rank-up, the item in the gun slot (or equipment grid slot) is replaced in-place with the ranked variant
 - Ranked guns carry 15% / 30% / 45% faster fire rate, 15% / 30% / 50% longer range, and 20% / 40% / 60% more damage per shot compared to the base weapon
 - Switching to a tracked gun auto-upgrades it if saved kill count already qualifies
+- Two copies of the same equipment in the armor grid level up independently
+- On pickup, in-rank progress is intentionally lost; re-placing a ranked item resets its counter to the floor threshold for that rank (rank-2 item placed back in the grid starts at the rank-2 kill threshold)
 - Badge overlay on ranked item icons shown when CustomHeroTurrets is also installed
 
 **Personal Tesla Defense equipment (new item):**
@@ -208,6 +210,9 @@ Handheld weapons and power armor equipment that level up through kills, gaining 
 - Personal Tesla Defense chain lightning scales with rank: all four ranks use dedicated `chain-active-trigger` prototypes so both max_jumps (4→6→9→12) and fork_chance (0.05→0.20→0.40→0.75) grow independently; base cooldown raised to 120 ticks (from 60) so rank 1 feels earned and rank 4 (~66 ticks with multiplier) becomes the payoff
 - Ranked variants now sort after the original in the Factoriopedia: a `-[rank-N]` suffix is appended to each ranked item's `order` field so originals (unchanged name) appear first, followed by Rank 2, 3, 4
 - Fixed ranked guns and equipment showing incorrect stack/rocket-stack sizes: Factorio computes item weight from the recipe of the original but falls back to a different formula for items with no recipe; ranked items now have `weight` explicitly set (copied from the base or computed as `1000/stack_size * kg`) so rocket cargo capacity matches the original
+
+**v1.0.1:**
+- Equipment kill counts (Personal Laser Defense, Personal Tesla Defense) are now tracked per armor grid slot rather than per player per equipment type: two copies of the same equipment equipped simultaneously level up independently. On pickup the in-rank counter is discarded; re-placing a ranked item resets its counter to the kill threshold for that rank, so a rank-2 item placed back in the grid resumes from the rank-2 floor rather than zero
 
 ---
 
