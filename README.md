@@ -16,7 +16,7 @@ Turrets that level up based on kills, with a rank insignia overlay and per-rank 
 - Fixed generated hero-turret recipes silently landing in the default `crafting` category instead of the source turret's actual recipe category: `RecipePrototype.category` was merged into a `categories` array in Factorio 2.1; now copies `turret.recipe.categories` instead of the no-longer-existing `turret.recipe.category`
 
 **v2.1.2:**
-- Fixed turrets losing their enable/disable state and circuit network connections on rank-up: the entity swap now saves `active`, `circuit_connection_definitions`, and the circuit control behavior (enable condition) before destroying the old entity, then re-applies them to the new one
+- Fixed turrets losing their enable/disable state and circuit network connections on rank-up: the entity swap now saves `disabled_by_script`, `circuit_connection_definitions`, and the circuit control behavior (enable condition) before destroying the old entity, then re-applies them to the new one
 
 **v2.1.3:**
 - Fixed turrets losing their priority target list on rank-up: the entity swap now reads `priority_targets` (array of `LuaEntityPrototype`) and `ignore_unprioritised_targets` before destroying the old entity, then replays them on the new one via `set_priority_target` — preserves e.g. a rocket turret on Aquilo configured to only shoot medium asteroids
