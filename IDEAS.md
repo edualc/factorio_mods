@@ -56,3 +56,23 @@ Implementation notes:
   weapon's own rank and the player's RPG level.
 - Rank insignia shown via a custom item icon overlay or item description suffix.
 
+### Known limitations / future work
+
+- **Kill count should be per item instance, not per weapon type.** Currently a
+  single kill counter per player per weapon name is shared across all copies of
+  that item (e.g. a stack of 10 personal tesla defenses all read the same count).
+  Ideally each slottable item in the armor grid tracks its own kills independently,
+  so two equipped copies of the same equipment can be at different ranks.
+  CustomHeroTurrets solves this the same way: it reads `entity.kills` (a native
+  engine counter on the placed turret) and persists it through pickup/placement via
+  item tags (`item.set_tag("kills", entity.kills)` on deconstruct,
+  `entity.kills = stack.get_tag("kills")` on place). Equipment items in the armor
+  grid are also LuaItemStacks, so the same tag approach should transfer directly —
+  store kills in the item tag, read it back when the equipment is placed into a grid.
+
+- **Audit CustomRPGsystem magic for the same on_entity_died performance problem.**
+  The rpg_fireball / rpg_hadouken spells likely fire many kills per cast via splash,
+  each triggering on_entity_died. Check whether the magic kill handler has the same
+  all-players grid-scan issue that was found and fixed in CustomHeroWeapons, and
+  apply the same caching approach if so.
+
