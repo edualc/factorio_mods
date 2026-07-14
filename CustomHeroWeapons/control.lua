@@ -221,6 +221,7 @@ end
 -- Rebuild the equipped_players cache entry for one player by scanning their grid.
 -- Stores the base equipment name so attribution never needs to touch the grid per-kill.
 local function refresh_equipped_cache(player)
+    storage.equipped_players = storage.equipped_players or {}
     local pi = player.index
     local armor_inv = player.get_inventory(defines.inventory.character_armor)
     if armor_inv then
@@ -243,7 +244,7 @@ end
 -- up to EQUIPMENT_RANGE_SQ distance.
 -- Hot path: only arithmetic and table lookups — no inventory or grid API calls.
 local function attribute_equipment_kill(pos, surface)
-    if not next(storage.equipped_players) then return end
+    if not storage.equipped_players or not next(storage.equipped_players) then return end
 
     local best_player = nil
     local best_base   = nil
