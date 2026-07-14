@@ -1535,6 +1535,20 @@ local cause = event.cause
 local final_dmg = event.final_damage_amount
 
 
+-- ROBOT FRIENDLY-FIRE PROTECTION: magic projectiles (rpg_hadouken, rpg_fireaball) are
+-- created with force=player.force, so their area splash sets event.force to the player
+-- force — the same force the robots are on. event.force is a LuaForce (not LuaEntity)
+-- so it stays valid even after the projectile is destroyed. Heal back any damage dealt
+-- to a friendly robot by its own force.
+local friendly_robot_types = {['construction-robot']=true,['logistic-robot']=true,['combat-robot']=true}
+if final_dmg > 0 and entity and entity.valid and friendly_robot_types[entity.type] then
+	local attacking_force = event.force
+	if attacking_force and attacking_force.valid and attacking_force == entity.force then
+		entity.health = entity.health + final_dmg
+		return
+	end
+end
+
 -- NATURAL ARMOR: applied unconditionally so it covers splash/explosion damage
 -- whose cause entity is already gone by the time on_entity_damaged fires (e.g.
 -- rpg_fireaball / rpg_hadouken), which made cause.valid=false and bypassed armor.
