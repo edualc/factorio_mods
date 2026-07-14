@@ -4,6 +4,10 @@ local RANK_COOLDOWN_MULT = {1.0, 0.85, 0.70, 0.55}
 local RANK_RANGE_MULT    = {1.0, 1.15, 1.30, 1.50}
 local RANK_DAMAGE_MULT   = {1.0, 1.20, 1.40, 1.60}
 
+-- Fork chance for the personal tesla defense chain lightning per rank.
+-- Rank 1 uses chain-tesla-gun-chain (0.30); ranks 2-4 use hw-specific chains.
+local TESLA_DEFENSE_FORK_CHANCE = {0.30, 0.40, 0.55, 0.75}
+
 local function ranked_name(base, rank)
     return "hw-" .. base .. "-rank-" .. rank
 end
@@ -94,6 +98,18 @@ local function create_ranked_equipment(base_name, rank)
     ranked_eq.localised_name = {"heroweapons.ranked-item-name", {"equipment-name." .. base_name}, tostring(rank)}
     ranked_eq.localised_description = {"heroweapons.ranked-equipment-desc", rank_desc_params(rank)}
     apply_equipment_rank(ranked_eq, rank)
+
+    -- Swap in the rank-specific chain for personal tesla defense.
+    if base_name == "personal-tesla-defense-equipment" then
+        local effects = ranked_eq.attack_parameters.ammo_type.action.action_delivery.target_effects
+        for _, effect in ipairs(effects) do
+            if effect.action.action_delivery.type == "chain" then
+                effect.action.action_delivery.chain = "hw-personal-tesla-defense-chain-rank-" .. rank
+                break
+            end
+        end
+    end
+
     data:extend({ranked_eq})
 
     -- Item prototype (inventory icon, place_as_equipment_result)
@@ -178,6 +194,32 @@ if mods["space-age"] and data.raw["gun"]["teslagun"] then
             }
         }
         data:extend({tesla_eq})
+
+        -- Rank-specific chain-active-trigger prototypes for escalating fork chance.
+        -- Rank 1 uses the base chain-tesla-gun-chain; ranks 2-4 get their own.
+        for r = 2, 4 do
+            data:extend({{
+                type = "chain-active-trigger",
+                name = "hw-personal-tesla-defense-chain-rank-" .. r,
+                max_jumps = 12,
+                max_range_per_jump = 12,
+                jump_delay_ticks = 6,
+                fork_chance = TESLA_DEFENSE_FORK_CHANCE[r],
+                fork_chance_increase_per_quality_level = 0.05,
+                action = {
+                    type = "direct",
+                    action_delivery = {
+                        type = "beam",
+                        beam = "chain-tesla-gun-beam-bounce",
+                        max_length = 12.5,
+                        duration = 30,
+                        add_to_shooter = false,
+                        destroy_with_source_or_target = false,
+                        source_offset = {0, 0},
+                    },
+                },
+            }})
+        end
 
         -- Item prototype (inventory object)
         local tesla_item = table.deepcopy(laser_item)
