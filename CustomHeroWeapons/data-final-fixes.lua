@@ -40,15 +40,20 @@ end
 local function ranked_icons(base_item, rank)
     if not mods["CustomHeroTurrets"] then return nil end
     local badge = math.min(rank - 1, 4)
-    return {
-        {icon = base_item.icon, icon_size = base_item.icon_size or 64},
-        {
-            icon = "__CustomHeroTurrets__/graphics/icons/hero-" .. badge .. "-icon.png",
-            icon_size = 64,
-            scale = 0.35,
-            shift = {8, 8},
-        },
-    }
+    -- Support items that use a layered icons table instead of a single icon field.
+    local base_layers
+    if base_item.icons then
+        base_layers = table.deepcopy(base_item.icons)
+    else
+        base_layers = {{icon = base_item.icon, icon_size = base_item.icon_size or 64}}
+    end
+    table.insert(base_layers, {
+        icon = "__CustomHeroTurrets__/graphics/icons/hero-" .. badge .. "-icon.png",
+        icon_size = 64,
+        scale = 0.35,
+        shift = {8, 8},
+    })
+    return base_layers
 end
 
 -- ── Ranked gun variants ───────────────────────────────────────────────────────
@@ -161,12 +166,15 @@ if mods["space-age"] and data.raw["gun"]["teslagun"] then
         tesla_eq.name = "personal-tesla-defense-equipment"
         tesla_eq.localised_name = nil
         tesla_eq.localised_description = nil
+        -- Reuse the laser-defense equipment sprite tinted electric blue so the
+        -- armor-grid cell reads as "same equipment family, different damage type."
         tesla_eq.sprite = {
-            filename = "__space-age__/graphics/icons/teslagun.png",
-            width = 64,
-            height = 64,
+            filename = "__base__/graphics/equipment/personal-laser-defense-equipment.png",
+            width = 128,
+            height = 128,
             priority = "medium",
-            scale = 1.0,
+            scale = 0.5,
+            tint = {r = 0.5, g = 0.8, b = 1.0, a = 1.0},
         }
         tesla_eq.energy_source.buffer_capacity = "440kJ"
         tesla_eq.attack_parameters.cooldown = 120
@@ -243,8 +251,23 @@ if mods["space-age"] and data.raw["gun"]["teslagun"] then
         tesla_item.name = "personal-tesla-defense-equipment"
         tesla_item.localised_name = nil
         tesla_item.localised_description = nil
-        tesla_item.icon = "__space-age__/graphics/icons/teslagun.png"
-        tesla_item.icon_size = 64
+        -- Layered icon: laser-defense silhouette in electric blue + tesla orb corner.
+        -- Reads as "personal defense equipment" but clearly in the tesla family.
+        tesla_item.icon = nil
+        tesla_item.icon_size = nil
+        tesla_item.icons = {
+            {
+                icon = "__base__/graphics/icons/personal-laser-defense-equipment.png",
+                icon_size = 64,
+                tint = {r = 0.5, g = 0.8, b = 1.0, a = 1.0},
+            },
+            {
+                icon = "__space-age__/graphics/icons/ammo-category/tesla.png",
+                icon_size = 64,
+                scale = 0.45,
+                shift = {10, 10},
+            },
+        }
         tesla_item.place_as_equipment_result = "personal-tesla-defense-equipment"
         tesla_item.order = "b[active-defense]-b[personal-tesla-defense-equipment]"
         data:extend({tesla_item})
