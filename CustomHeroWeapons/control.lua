@@ -218,15 +218,38 @@ local function add_equipment_kill(player, base_name)
     if tr > 1 then upgrade_equipment(player, base_name, tr) end
 end
 
+-- Rebuild the equipped_players cache entry for one player by scanning their grid.
+local function refresh_equipped_cache(player)
+    local pi = player.index
+    local armor_inv = player.get_inventory(defines.inventory.character_armor)
+    if armor_inv then
+        local armor = armor_inv[1]
+        if armor and armor.valid_for_read and armor.grid then
+            for _, eq in pairs(armor.grid.equipment) do
+                if IS_TRACKED_EQUIPMENT[parse_item(eq.name)] then
+                    storage.equipped_players[pi] = true
+                    return
+                end
+            end
+        end
+    end
+    storage.equipped_players[pi] = nil
+end
+
 -- Check all players' personal defense equipment for proximity to a killed
 -- enemy.  Attributes the kill to the closest player with equipment equipped,
 -- up to EQUIPMENT_RANGE_SQ distance.
+-- Fast-exits if no player currently has tracked equipment equipped.
 local function attribute_equipment_kill(pos, surface)
+    if not next(storage.equipped_players) then return end
+
     local best_player = nil
     local best_base   = nil
     local best_dist   = EQUIPMENT_RANGE_SQ + 1
 
-    for _, player in pairs(game.players) do
+    for pi in pairs(storage.equipped_players) do
+        local player = game.players[pi]
+        if not player then goto continue end
         local char = player.character
         if char and char.valid and char.surface == surface then
             local cp = char.position
@@ -250,6 +273,7 @@ local function attribute_equipment_kill(pos, surface)
                 end
             end
         end
+        ::continue::
     end
 
     if best_player then
@@ -260,15 +284,21 @@ end
 -- ── Event handlers ────────────────────────────────────────────────────────────
 
 script.on_init(function()
-    storage.heroweapons    = {}
-    storage.active_gun     = {}   -- [player_index] = base_weapon_name last fired
-    storage.ammo_snapshot  = {}   -- [player_index] = {[slot] = count}
+    storage.heroweapons      = {}
+    storage.active_gun       = {}   -- [player_index] = base_weapon_name last fired
+    storage.ammo_snapshot    = {}   -- [player_index] = {[slot] = count}
+    storage.equipped_players = {}   -- [player_index] = true when tracked equipment is equipped
 end)
 
 script.on_configuration_changed(function()
-    storage.heroweapons   = storage.heroweapons   or {}
-    storage.active_gun    = storage.active_gun    or {}
-    storage.ammo_snapshot = storage.ammo_snapshot or {}
+    storage.heroweapons      = storage.heroweapons      or {}
+    storage.active_gun       = storage.active_gun       or {}
+    storage.ammo_snapshot    = storage.ammo_snapshot    or {}
+    storage.equipped_players = storage.equipped_players or {}
+    -- Rebuild cache in case mod was added to an existing save.
+    for _, player in pairs(game.players) do
+        refresh_equipped_cache(player)
+    end
 end)
 
 -- Track which gun was most recently fired by watching ammo consumption.
@@ -394,4 +424,19 @@ script.on_event(defines.events.on_player_joined_game, function(event)
     storage.heroweapons[pi]   = storage.heroweapons[pi]   or {}
     storage.active_gun[pi]    = storage.active_gun[pi]    or nil
     storage.ammo_snapshot[pi] = storage.ammo_snapshot[pi] or nil
+    refresh_equipped_cache(game.players[pi])
+end)
+
+script.on_event(defines.events.on_player_placed_equipment, function(event)
+    local base = parse_item(event.equipment.name)
+    if base and IS_TRACKED_EQUIPMENT[base] then
+        storage.equipped_players[event.player_index] = true
+    end
+end)
+
+script.on_event(defines.events.on_player_removed_equipment, function(event)
+    local base = parse_item(event.equipment_name)
+    if base and IS_TRACKED_EQUIPMENT[base] then
+        refresh_equipped_cache(game.players[event.player_index])
+    end
 end)
