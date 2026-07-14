@@ -4,7 +4,7 @@ Personal forks of several Factorio mods, updated for compatibility with Factorio
 
 ## Mods
 
-### CustomHeroTurrets `2.1.1`
+### CustomHeroTurrets `2.1.3`
 Turrets that level up based on kills, with a rank insignia overlay and per-rank stat buffs. Works across modded turrets, not just vanilla ones.
 
 **Original mod:** [HeroTurrets](https://mods.factorio.com/mod/HeroTurrets) by **PixelWhipped**
@@ -14,6 +14,12 @@ Turrets that level up based on kills, with a rank insignia overlay and per-rank 
 - Fixed flame (flamethrower) turrets not receiving hero rank variants: `is_unkown_nesw()` only covered `ammo-turret` and `electric-turret`; Factorio 2.x flamethrower turrets use `graphics_set` instead of the legacy NESW `base_picture` format, so they were silently skipped and never appeared in the Factoriopedia. Adding `fluid-turret` to the guard lets them go through the badge-overlay path like other turrets
 - Fixed turrets appearing to lose health on level-up: the old entity's raw HP was transferred directly to the new (higher max-health) entity, so a full-health turret would show e.g. 400/600 after upgrading. Turrets now restore to full HP on rank-up
 - Fixed generated hero-turret recipes silently landing in the default `crafting` category instead of the source turret's actual recipe category: `RecipePrototype.category` was merged into a `categories` array in Factorio 2.1; now copies `turret.recipe.categories` instead of the no-longer-existing `turret.recipe.category`
+
+**v2.1.2:**
+- Fixed turrets losing their enable/disable state and circuit network connections on rank-up: the entity swap now saves `active`, `circuit_connection_definitions`, and the circuit control behavior (enable condition) before destroying the old entity, then re-applies them to the new one
+
+**v2.1.3:**
+- Fixed turrets losing their priority target list on rank-up: the entity swap now reads `priority_targets` (array of `LuaEntityPrototype`) and `ignore_unprioritised_targets` before destroying the old entity, then replays them on the new one via `set_priority_target` — preserves e.g. a rocket turret on Aquilo configured to only shoot medium asteroids
 
 ---
 

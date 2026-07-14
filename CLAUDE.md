@@ -58,6 +58,14 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ---
 
+## Environment
+
+Copy `template.env` to `.env` and set `FACTORIO_PATH` to the path of the local Factorio installation. On WSL this is `/mnt/c/Program Files (x86)/Steam/steamapps/common/Factorio`.
+
+When `FACTORIO_PATH` is set, use it to inspect the Factorio installation directly — browse data files, check prototype definitions, verify API behaviour, look up vanilla values — rather than guessing or asking the user. Source the file with `. .env` before using the variable in shell commands.
+
+---
+
 ## Multiplayer desync check
 
 Before committing any change, review whether the change could cause desyncs when the mod runs on a multiplayer server.
@@ -79,6 +87,7 @@ Before committing any change to a mod, increment the mod's patch version (the th
 
 - One change or many in the same commit → one patch bump
 - Only bump the mod(s) you actually changed
+- Bugfixes for code introduced in the current (not yet committed/shipped) version do not need an additional bump
 
 ---
 
@@ -86,13 +95,8 @@ Before committing any change to a mod, increment the mod's patch version (the th
 
 Before committing any change, update @README.md to reflect what was changed.
 
-- New feature or fix → add or update the relevant bullet under the mod's **Changes from original** section
-- If the change spans multiple mods, update each affected section
+- Every version bump gets its own `**vX.Y.Z:**` section at the bottom of the mod's entry — do not append bullets to the flat list above it
+- The flat list is a historical record of pre-versioning changes; do not modify it
+- The mod's header version (e.g. `### CustomHeroTurrets \`2.1.2\``) must match `info.json`
+- If the change spans multiple mods, add a versioned section to each affected mod's entry
 - Keep entries factual and specific (what changed and why), matching the tone and level of detail of the existing bullets
-
-### Versioned changelog format
-
-For mods that have moved to versioned sections (e.g. CustomZomboid from v2.0.3 onwards), group new changes under a `**vX.Y.Z:**` heading rather than appending to the flat list. The flat list above it is a historical record of pre-versioning changes — do not modify it.
-
-- Each new patch bump gets its own `**vX.Y.Z:**` section at the bottom of that mod's entry
-- The mod's header version (e.g. `### CustomZomboid \`2.0.5\``) must match `info.json`

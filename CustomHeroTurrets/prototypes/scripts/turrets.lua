@@ -44,6 +44,35 @@ local local_replace_turret = function(entity,recipe)
 	local dd = entity.damage_dealt
 	local d = entity.direction
 	local o = entity.orientation
+	local was_disabled_by_script = nil
+	pcall(function() was_disabled_by_script = entity.disabled_by_script end)
+
+	-- Save circuit connections and control behavior before destroying
+	local circuit_connections = nil
+	local cb_data = nil
+	pcall(function()
+		circuit_connections = entity.circuit_connection_definitions
+		local cb = entity.get_control_behavior()
+		if cb then
+			cb_data = {}
+			if cb.circuit_enable_disable ~= nil then cb_data.circuit_enable_disable = cb.circuit_enable_disable end
+			if cb.circuit_condition ~= nil then cb_data.circuit_condition = cb.circuit_condition end
+		end
+	end)
+
+	-- Save turret priority target list and ignore-unprioritised flag
+	local priority_target_names = nil
+	local ignore_unprioritised = nil
+	pcall(function()
+		local pts = entity.priority_targets
+		if pts and #pts > 0 then
+			priority_target_names = {}
+			for _, pt in ipairs(pts) do
+				table.insert(priority_target_names, pt.name)
+			end
+		end
+		ignore_unprioritised = entity.ignore_unprioritised_targets
+	end)
 
 	local fluid = {}
 	-- fluidbox throws in Factorio 2.x if entity type has no fluidbox
@@ -69,6 +98,40 @@ local local_replace_turret = function(entity,recipe)
 	new_entity.health = new_entity.max_health
 	new_entity.kills = k
 	new_entity.damage_dealt = dd
+	if was_disabled_by_script then
+		pcall(function() new_entity.disabled_by_script = true end)
+	end
+
+	-- Restore circuit connections
+	if circuit_connections then
+		for _, conn in pairs(circuit_connections) do
+			pcall(function() new_entity.connect_neighbour(conn) end)
+		end
+	end
+
+	-- Restore circuit control behavior (enable/disable condition)
+	if cb_data then
+		pcall(function()
+			local new_cb = new_entity.get_control_behavior()
+			if new_cb then
+				if cb_data.circuit_enable_disable ~= nil then new_cb.circuit_enable_disable = cb_data.circuit_enable_disable end
+				if cb_data.circuit_condition ~= nil then new_cb.circuit_condition = cb_data.circuit_condition end
+			end
+		end)
+	end
+
+	-- Restore turret priority target list and ignore-unprioritised flag
+	if priority_target_names then
+		pcall(function()
+			for i, name in ipairs(priority_target_names) do
+				new_entity.set_priority_target(i, name)
+			end
+		end)
+	end
+	if ignore_unprioritised ~= nil then
+		pcall(function() new_entity.ignore_unprioritised_targets = ignore_unprioritised end)
+	end
+
 	local inv = new_entity.get_inventory(defines.inventory.turret_ammo)
 	if inv ~= nil and c ~= nil then
 		for _, item in pairs(c) do
