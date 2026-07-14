@@ -4,9 +4,11 @@ local RANK_COOLDOWN_MULT = {1.0, 0.85, 0.70, 0.55}
 local RANK_RANGE_MULT    = {1.0, 1.15, 1.30, 1.50}
 local RANK_DAMAGE_MULT   = {1.0, 1.20, 1.40, 1.60}
 
--- Fork chance for the personal tesla defense chain lightning per rank.
--- Rank 1 uses chain-tesla-gun-chain (0.30); ranks 2-4 use hw-specific chains.
-local TESLA_DEFENSE_FORK_CHANCE = {0.30, 0.40, 0.55, 0.75}
+-- Chain lightning parameters for the personal tesla defense per rank.
+-- All ranks use hw-specific chain prototypes so max_jumps and fork_chance
+-- can both scale independently of the vanilla chain-tesla-gun-chain.
+local TESLA_DEFENSE_MAX_JUMPS   = {4, 6, 9, 12}
+local TESLA_DEFENSE_FORK_CHANCE = {0.05, 0.20, 0.40, 0.75}
 
 local function ranked_name(base, rank)
     return "hw-" .. base .. "-rank-" .. rank
@@ -70,6 +72,8 @@ local function create_ranked_gun(base_name, rank)
 
     apply_gun_rank(ranked, rank)
 
+    if ranked.order then ranked.order = ranked.order .. "-[rank-" .. rank .. "]" end
+
     local icons = ranked_icons(base, rank)
     if icons then
         ranked.icons = icons
@@ -110,6 +114,7 @@ local function create_ranked_equipment(base_name, rank)
         end
     end
 
+    if ranked_eq.order then ranked_eq.order = ranked_eq.order .. "-[rank-" .. rank .. "]" end
     data:extend({ranked_eq})
 
     -- Item prototype (inventory icon, place_as_equipment_result)
@@ -121,6 +126,7 @@ local function create_ranked_equipment(base_name, rank)
     ranked_item.localised_name = {"heroweapons.ranked-item-name", {"equipment-name." .. base_name}, tostring(rank)}
     ranked_item.localised_description = {"heroweapons.ranked-equipment-desc", rank_desc_params(rank)}
     ranked_item.place_as_equipment_result = rname
+    if ranked_item.order then ranked_item.order = ranked_item.order .. "-[rank-" .. rank .. "]" end
 
     local icons = ranked_icons(base_item, rank)
     if icons then
@@ -152,7 +158,7 @@ if mods["space-age"] and data.raw["gun"]["teslagun"] then
             scale = 1.0,
         }
         tesla_eq.energy_source.buffer_capacity = "440kJ"
-        tesla_eq.attack_parameters.cooldown = 60
+        tesla_eq.attack_parameters.cooldown = 120
         tesla_eq.attack_parameters.range = 14
         tesla_eq.attack_parameters.damage_modifier = 2
         tesla_eq.attack_parameters.ammo_category = "tesla"
@@ -170,7 +176,7 @@ if mods["space-age"] and data.raw["gun"]["teslagun"] then
                                 type = "direct",
                                 action_delivery = {
                                     type = "chain",
-                                    chain = "chain-tesla-gun-chain",
+                                    chain = "hw-personal-tesla-defense-chain-rank-1",
                                 }
                             }
                         },
@@ -195,13 +201,13 @@ if mods["space-age"] and data.raw["gun"]["teslagun"] then
         }
         data:extend({tesla_eq})
 
-        -- Rank-specific chain-active-trigger prototypes for escalating fork chance.
-        -- Rank 1 uses the base chain-tesla-gun-chain; ranks 2-4 get their own.
-        for r = 2, 4 do
+        -- Rank-specific chain-active-trigger prototypes (ranks 1-4).
+        -- Each rank has its own prototype so max_jumps and fork_chance both scale.
+        for r = 1, 4 do
             data:extend({{
                 type = "chain-active-trigger",
                 name = "hw-personal-tesla-defense-chain-rank-" .. r,
-                max_jumps = 12,
+                max_jumps = TESLA_DEFENSE_MAX_JUMPS[r],
                 max_range_per_jump = 12,
                 jump_delay_ticks = 6,
                 fork_chance = TESLA_DEFENSE_FORK_CHANCE[r],
@@ -277,3 +283,4 @@ for _, eq_name in ipairs(EQUIPMENT) do
         create_ranked_equipment(eq_name, rank)
     end
 end
+

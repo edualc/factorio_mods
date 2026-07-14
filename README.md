@@ -205,7 +205,8 @@ Handheld weapons and power armor equipment that level up through kills, gaining 
 - Personal Tesla Defense equipment fires chain lightning instead of a sustained laser beam: uses a tesla `instant` delivery nesting a `chain-tesla-gun-chain` trigger (12 jumps, 12-tile jump range, 0.3 fork chance) and the `chain-tesla-gun-beam-start` visual, matching the handheld tesla gun's behavior
 - Fixed ranked equipment items showing "Unknown key: equipment-name.X" — item and equipment prototypes now both resolve the display name from the `[equipment-name]` locale section instead of `[item-name]`
 - Rank tooltips now show actual stat values (e.g. "+18% fire rate, +15% range, +20% damage") instead of generic text
-- Personal Tesla Defense chain fork chance increases per rank: 0.30 (base) → 0.40 (rank 2) → 0.55 (rank 3) → 0.75 (rank 4), using dedicated `chain-active-trigger` prototypes per rank
+- Personal Tesla Defense chain lightning scales with rank: all four ranks use dedicated `chain-active-trigger` prototypes so both max_jumps (4→6→9→12) and fork_chance (0.05→0.20→0.40→0.75) grow independently; base cooldown raised to 120 ticks (from 60) so rank 1 feels earned and rank 4 (~66 ticks with multiplier) becomes the payoff
+- Ranked variants now sort after the original in the Factoriopedia: a `-[rank-N]` suffix is appended to each ranked item's `order` field so originals (unchanged name) appear first, followed by Rank 2, 3, 4
 
 ---
 
