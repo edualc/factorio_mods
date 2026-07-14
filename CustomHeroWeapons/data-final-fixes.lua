@@ -54,6 +54,14 @@ end
 -- Guns are plain items (type = "gun") so one prototype covers both inventory
 -- and firing behaviour.
 
+-- Copy weight/stack fields so ranked items aren't affected by Factorio's
+-- recipe-based weight fallback (ranked items have no recipe, so without an
+-- explicit weight they get a different default than originals that do).
+local function copy_transport_fields(src, dst)
+    dst.stack_size = src.stack_size
+    dst.weight = src.weight or math.floor(1000 / src.stack_size * kg)
+end
+
 local function rank_desc_params(rank)
     local rate_pct   = math.floor((1 / RANK_COOLDOWN_MULT[rank] - 1) * 100 + 0.5)
     local range_pct  = math.floor((RANK_RANGE_MULT[rank]  - 1) * 100 + 0.5)
@@ -71,6 +79,7 @@ local function create_ranked_gun(base_name, rank)
     ranked.localised_description = {"heroweapons.ranked-gun-desc", rank_desc_params(rank)}
 
     apply_gun_rank(ranked, rank)
+    copy_transport_fields(base, ranked)
 
     if ranked.order then ranked.order = ranked.order .. "-[rank-" .. rank .. "]" end
 
@@ -126,6 +135,7 @@ local function create_ranked_equipment(base_name, rank)
     ranked_item.localised_name = {"heroweapons.ranked-item-name", {"equipment-name." .. base_name}, tostring(rank)}
     ranked_item.localised_description = {"heroweapons.ranked-equipment-desc", rank_desc_params(rank)}
     ranked_item.place_as_equipment_result = rname
+    copy_transport_fields(base_item, ranked_item)
     if ranked_item.order then ranked_item.order = ranked_item.order .. "-[rank-" .. rank .. "]" end
 
     local icons = ranked_icons(base_item, rank)

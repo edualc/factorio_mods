@@ -207,6 +207,7 @@ Handheld weapons and power armor equipment that level up through kills, gaining 
 - Rank tooltips now show actual stat values (e.g. "+18% fire rate, +15% range, +20% damage") instead of generic text
 - Personal Tesla Defense chain lightning scales with rank: all four ranks use dedicated `chain-active-trigger` prototypes so both max_jumps (4→6→9→12) and fork_chance (0.05→0.20→0.40→0.75) grow independently; base cooldown raised to 120 ticks (from 60) so rank 1 feels earned and rank 4 (~66 ticks with multiplier) becomes the payoff
 - Ranked variants now sort after the original in the Factoriopedia: a `-[rank-N]` suffix is appended to each ranked item's `order` field so originals (unchanged name) appear first, followed by Rank 2, 3, 4
+- Fixed ranked guns and equipment showing incorrect stack/rocket-stack sizes: Factorio computes item weight from the recipe of the original but falls back to a different formula for items with no recipe; ranked items now have `weight` explicitly set (copied from the base or computed as `1000/stack_size * kg`) so rocket cargo capacity matches the original
 
 ---
 
