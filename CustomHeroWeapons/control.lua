@@ -426,7 +426,7 @@ script.on_event(defines.events.on_player_placed_equipment, function(event)
 end)
 
 script.on_event(defines.events.on_player_removed_equipment, function(event)
-    local base = parse_item(event.equipment_name)
+    local base = parse_item(event.equipment.name)
     if base and IS_TRACKED_EQUIPMENT[base] then
         refresh_equipped_cache(game.players[event.player_index])
     end
