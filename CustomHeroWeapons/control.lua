@@ -19,6 +19,7 @@ local IS_TRACKED_GUN = {
     ["rocket-launcher"]  = true,
     ["flamethrower"]     = true,
     ["teslagun"]         = true,
+    ["railgun"]          = true,
 }
 
 local IS_TRACKED_EQUIPMENT = {
@@ -48,6 +49,7 @@ local GUN_DAMAGE_TYPE = {
     ["rocket-launcher"] = "explosion",
     ["flamethrower"]    = "fire",
     ["teslagun"]        = "electric",
+    ["railgun"]         = "physical",   -- same as bullets; tier-1 ammo cache disambiguates
 }
 
 -- Maximum distance (squared, in tiles) within which an equipment kill is

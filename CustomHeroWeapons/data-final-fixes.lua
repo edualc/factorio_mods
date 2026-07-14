@@ -134,7 +134,10 @@ end
 
 -- ── Ranked gun variants ───────────────────────────────────────────────────────
 local GUNS = {"pistol", "submachine-gun", "shotgun", "combat-shotgun", "rocket-launcher", "flamethrower"}
-if mods["space-age"] then table.insert(GUNS, "teslagun") end
+if mods["space-age"] then
+    table.insert(GUNS, "teslagun")
+    table.insert(GUNS, "railgun")
+end
 
 for _, gun_name in ipairs(GUNS) do
     for rank = 2, 4 do

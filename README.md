@@ -183,7 +183,7 @@ Handheld weapons and power armor equipment that level up through kills, gaining 
 **Original concept:** New mod (no upstream)
 
 **Weapons and equipment covered:**
-- Guns: Pistol, Submachine gun, Shotgun, Combat shotgun, Rocket launcher, Flamethrower, Tesla gun (Space Age)
+- Guns: Pistol, Submachine gun, Shotgun, Combat shotgun, Rocket launcher, Flamethrower, Tesla gun, Railgun (Space Age)
 - Equipment: Personal Laser Defense, Personal Tesla Defense (new, Space Age)
 
 **Rank system:**
