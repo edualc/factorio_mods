@@ -219,6 +219,7 @@ local function add_equipment_kill(player, base_name)
 end
 
 -- Rebuild the equipped_players cache entry for one player by scanning their grid.
+-- Stores the base equipment name so attribution never needs to touch the grid per-kill.
 local function refresh_equipped_cache(player)
     local pi = player.index
     local armor_inv = player.get_inventory(defines.inventory.character_armor)
@@ -226,8 +227,9 @@ local function refresh_equipped_cache(player)
         local armor = armor_inv[1]
         if armor and armor.valid_for_read and armor.grid then
             for _, eq in pairs(armor.grid.equipment) do
-                if IS_TRACKED_EQUIPMENT[parse_item(eq.name)] then
-                    storage.equipped_players[pi] = true
+                local base = parse_item(eq.name)
+                if base and IS_TRACKED_EQUIPMENT[base] then
+                    storage.equipped_players[pi] = base
                     return
                 end
             end
@@ -239,7 +241,7 @@ end
 -- Check all players' personal defense equipment for proximity to a killed
 -- enemy.  Attributes the kill to the closest player with equipment equipped,
 -- up to EQUIPMENT_RANGE_SQ distance.
--- Fast-exits if no player currently has tracked equipment equipped.
+-- Hot path: only arithmetic and table lookups — no inventory or grid API calls.
 local function attribute_equipment_kill(pos, surface)
     if not next(storage.equipped_players) then return end
 
@@ -247,7 +249,7 @@ local function attribute_equipment_kill(pos, surface)
     local best_base   = nil
     local best_dist   = EQUIPMENT_RANGE_SQ + 1
 
-    for pi in pairs(storage.equipped_players) do
+    for pi, base in pairs(storage.equipped_players) do
         local player = game.players[pi]
         if not player then goto continue end
         local char = player.character
@@ -256,21 +258,9 @@ local function attribute_equipment_kill(pos, surface)
             local dx, dy = pos.x - cp.x, pos.y - cp.y
             local dist_sq = dx * dx + dy * dy
             if dist_sq < best_dist then
-                local armor_inv = player.get_inventory(defines.inventory.character_armor)
-                if armor_inv then
-                    local armor = armor_inv[1]
-                    if armor and armor.valid_for_read and armor.grid then
-                        for _, eq in pairs(armor.grid.equipment) do
-                            local base = parse_item(eq.name)
-                            if base and IS_TRACKED_EQUIPMENT[base] then
-                                best_player = player
-                                best_base   = base
-                                best_dist   = dist_sq
-                                break
-                            end
-                        end
-                    end
-                end
+                best_player = player
+                best_base   = base
+                best_dist   = dist_sq
             end
         end
         ::continue::
@@ -430,7 +420,7 @@ end)
 script.on_event(defines.events.on_player_placed_equipment, function(event)
     local base = parse_item(event.equipment.name)
     if base and IS_TRACKED_EQUIPMENT[base] then
-        storage.equipped_players[event.player_index] = true
+        storage.equipped_players[event.player_index] = base
     end
 end)
 
