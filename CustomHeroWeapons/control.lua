@@ -52,6 +52,11 @@ local GUN_DAMAGE_TYPE = {
     ["railgun"]         = "physical",   -- same as bullets; tier-1 ammo cache disambiguates
 }
 
+-- Per-weapon multiplier on the shared kill thresholds.
+local KILL_THRESHOLD_MULT = {
+    ["personal-tesla-defense-equipment"] = 10,
+}
+
 -- Maximum distance (squared, in tiles) within which an equipment kill is
 -- attributed to a nearby player.  20 tiles ≈ max personal-laser-defense range
 -- after rank-4 scaling.
@@ -85,10 +90,11 @@ local function thresholds()
     return _thresholds
 end
 
-local function target_rank(kills)
+local function target_rank(base_name, kills)
+    local mult = KILL_THRESHOLD_MULT[base_name] or 1
     local t = thresholds()
     for rank = 4, 2, -1 do
-        if kills >= t[rank] then return rank end
+        if kills >= t[rank] * mult then return rank end
     end
     return 1
 end
@@ -200,7 +206,7 @@ local function add_gun_kill(player, base_name)
     local pi = player.index
     local kills = get_kills(pi, base_name) + 1
     set_kills(pi, base_name, kills)
-    local tr = target_rank(kills)
+    local tr = target_rank(base_name, kills)
     if tr > 1 then upgrade_gun(player, base_name, tr) end
 end
 
@@ -208,7 +214,7 @@ local function add_equipment_kill(player, base_name)
     local pi = player.index
     local kills = get_kills(pi, base_name) + 1
     set_kills(pi, base_name, kills)
-    local tr = target_rank(kills)
+    local tr = target_rank(base_name, kills)
     if tr > 1 then upgrade_equipment(player, base_name, tr) end
 end
 
@@ -374,7 +380,7 @@ script.on_event(defines.events.on_player_gun_inventory_changed, function(event)
             local base, cur_rank = parse_item(stack.name)
             if base and IS_TRACKED_GUN[base] then
                 local kills = get_kills(event.player_index, base)
-                local tr = target_rank(kills)
+                local tr = target_rank(base, kills)
                 if tr > cur_rank then
                     upgrade_gun(player, base, tr)
                 end

@@ -171,7 +171,7 @@ if mods["space-age"] and data.raw["gun"]["teslagun"] then
         tesla_eq.energy_source.buffer_capacity = "440kJ"
         tesla_eq.attack_parameters.cooldown = 120
         tesla_eq.attack_parameters.range = 14
-        tesla_eq.attack_parameters.damage_modifier = 2
+        tesla_eq.attack_parameters.damage_modifier = 0.25
         tesla_eq.attack_parameters.ammo_category = "tesla"
         tesla_eq.attack_parameters.ammo_type = {
             energy_consumption = "100kJ",
