@@ -166,15 +166,29 @@ if mods["space-age"] and data.raw["gun"]["teslagun"] then
         tesla_eq.name = "personal-tesla-defense-equipment"
         tesla_eq.localised_name = nil
         tesla_eq.localised_description = nil
-        -- Reuse the laser-defense equipment sprite tinted electric blue so the
-        -- armor-grid cell reads as "same equipment family, different damage type."
+        -- Layered grid sprite: tinted laser-defense body + tesla orb in the
+        -- bottom-right corner, matching the layered inventory icon.
         tesla_eq.sprite = {
-            filename = "__base__/graphics/equipment/personal-laser-defense-equipment.png",
-            width = 128,
-            height = 128,
-            priority = "medium",
-            scale = 0.5,
-            tint = {r = 0.5, g = 0.8, b = 1.0, a = 1.0},
+            layers = {
+                {
+                    filename = "__base__/graphics/equipment/personal-laser-defense-equipment.png",
+                    width = 128,
+                    height = 128,
+                    priority = "medium",
+                    scale = 0.5,
+                    tint = {r = 0.5, g = 0.8, b = 1.0, a = 1.0},
+                },
+                {
+                    -- ammo-category/tesla.png is a 120×64 mipmap strip; width=64 reads
+                    -- only the first (full-size) 64×64 frame.
+                    filename = "__space-age__/graphics/icons/ammo-category/tesla.png",
+                    width = 64,
+                    height = 64,
+                    priority = "medium",
+                    scale = 0.35,
+                    shift = {0.6, 0.6},
+                },
+            }
         }
         tesla_eq.energy_source.buffer_capacity = "440kJ"
         tesla_eq.attack_parameters.cooldown = 120
