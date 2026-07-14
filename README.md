@@ -202,6 +202,9 @@ Handheld weapons and power armor equipment that level up through kills, gaining 
 **v1.0.0:**
 - Initial release
 - Fixed mod failing to load: in Factorio 2.x, `active-defense-equipment` is not automatically registered as an item — the base game ships a separate `type = "item"` prototype with `place_as_equipment_result` for each equipment piece. `data-final-fixes.lua` now creates both the equipment prototype and the matching item prototype when generating personal-tesla-defense-equipment and all ranked equipment variants
+- Personal Tesla Defense equipment fires chain lightning instead of a sustained laser beam: uses a tesla `instant` delivery nesting a `chain-tesla-gun-chain` trigger (12 jumps, 12-tile jump range, 0.3 fork chance) and the `chain-tesla-gun-beam-start` visual, matching the handheld tesla gun's behavior
+- Fixed ranked equipment items showing "Unknown key: equipment-name.X" — item and equipment prototypes now both resolve the display name from the `[equipment-name]` locale section instead of `[item-name]`
+- Rank tooltips now show actual stat values (e.g. "+18% fire rate, +15% range, +20% damage") instead of generic text
 
 ---
 

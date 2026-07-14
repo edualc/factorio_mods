@@ -48,6 +48,13 @@ end
 -- Guns are plain items (type = "gun") so one prototype covers both inventory
 -- and firing behaviour.
 
+local function rank_desc_params(rank)
+    local rate_pct   = math.floor((1 / RANK_COOLDOWN_MULT[rank] - 1) * 100 + 0.5)
+    local range_pct  = math.floor((RANK_RANGE_MULT[rank]  - 1) * 100 + 0.5)
+    local damage_pct = math.floor((RANK_DAMAGE_MULT[rank] - 1) * 100 + 0.5)
+    return tostring(rank), tostring(rate_pct), tostring(range_pct), tostring(damage_pct)
+end
+
 local function create_ranked_gun(base_name, rank)
     local base = data.raw["gun"][base_name]
     if not base then return end
@@ -55,7 +62,7 @@ local function create_ranked_gun(base_name, rank)
     local ranked = table.deepcopy(base)
     ranked.name = ranked_name(base_name, rank)
     ranked.localised_name = {"heroweapons.ranked-item-name", {"item-name." .. base_name}, tostring(rank)}
-    ranked.localised_description = {"heroweapons.ranked-gun-desc", tostring(rank)}
+    ranked.localised_description = {"heroweapons.ranked-gun-desc", rank_desc_params(rank)}
 
     apply_gun_rank(ranked, rank)
 
@@ -85,7 +92,7 @@ local function create_ranked_equipment(base_name, rank)
     local ranked_eq = table.deepcopy(base_eq)
     ranked_eq.name = rname
     ranked_eq.localised_name = {"heroweapons.ranked-item-name", {"equipment-name." .. base_name}, tostring(rank)}
-    ranked_eq.localised_description = {"heroweapons.ranked-equipment-desc", tostring(rank)}
+    ranked_eq.localised_description = {"heroweapons.ranked-equipment-desc", rank_desc_params(rank)}
     apply_equipment_rank(ranked_eq, rank)
     data:extend({ranked_eq})
 
@@ -95,8 +102,8 @@ local function create_ranked_equipment(base_name, rank)
 
     local ranked_item = table.deepcopy(base_item)
     ranked_item.name = rname
-    ranked_item.localised_name = {"heroweapons.ranked-item-name", {"item-name." .. base_name}, tostring(rank)}
-    ranked_item.localised_description = {"heroweapons.ranked-equipment-desc", tostring(rank)}
+    ranked_item.localised_name = {"heroweapons.ranked-item-name", {"equipment-name." .. base_name}, tostring(rank)}
+    ranked_item.localised_description = {"heroweapons.ranked-equipment-desc", rank_desc_params(rank)}
     ranked_item.place_as_equipment_result = rname
 
     local icons = ranked_icons(base_item, rank)
@@ -132,9 +139,44 @@ if mods["space-age"] and data.raw["gun"]["teslagun"] then
         tesla_eq.attack_parameters.cooldown = 60
         tesla_eq.attack_parameters.range = 14
         tesla_eq.attack_parameters.damage_modifier = 2
-        tesla_eq.attack_parameters.ammo_type.energy_consumption = "100kJ"
-        local delivery = tesla_eq.attack_parameters.ammo_type.action.action_delivery
-        delivery.max_length = 14
+        tesla_eq.attack_parameters.ammo_category = "tesla"
+        tesla_eq.attack_parameters.ammo_type = {
+            energy_consumption = "100kJ",
+            action = {
+                type = "direct",
+                action_delivery = {
+                    type = "instant",
+                    target_effects = {
+                        -- Chain effect must go first in case the beam kills the target
+                        {
+                            type = "nested-result",
+                            action = {
+                                type = "direct",
+                                action_delivery = {
+                                    type = "chain",
+                                    chain = "chain-tesla-gun-chain",
+                                }
+                            }
+                        },
+                        {
+                            type = "nested-result",
+                            action = {
+                                type = "direct",
+                                action_delivery = {
+                                    type = "beam",
+                                    beam = "chain-tesla-gun-beam-start",
+                                    source_offset = {0, -1.31439},
+                                    max_length = 30,
+                                    duration = 30,
+                                    add_to_shooter = false,
+                                    destroy_with_source_or_target = false,
+                                }
+                            }
+                        },
+                    }
+                }
+            }
+        }
         data:extend({tesla_eq})
 
         -- Item prototype (inventory object)
