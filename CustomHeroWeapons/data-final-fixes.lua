@@ -8,7 +8,8 @@ local RANK_DAMAGE_MULT   = {1.0, 1.20, 1.40, 1.60}
 -- All ranks use hw-specific chain prototypes so max_jumps and fork_chance
 -- can both scale independently of the vanilla chain-tesla-gun-chain.
 local TESLA_DEFENSE_MAX_JUMPS   = {4, 6, 9, 12}
-local TESLA_DEFENSE_FORK_CHANCE = {0.05, 0.20, 0.40, 0.75}
+-- Half the vanilla tesla-gun fork_chance (0.3) at rank 1, then +5% per rank.
+local TESLA_DEFENSE_FORK_CHANCE = {0.15, 0.20, 0.25, 0.30}
 
 local function ranked_name(base, rank)
     return "hw-" .. base .. "-rank-" .. rank
