@@ -35,6 +35,21 @@ local IS_TURRET_TYPE = {
     ["artillery-turret"] = true,
 }
 
+-- Damage type produced by each tracked gun (the damage type present on
+-- on_entity_died).  Used to resolve which gun in the player's inventory
+-- was actually shooting when there are multiple tracked guns equipped.
+-- Physical guns are grouped together because their ammo all deals "physical"
+-- damage — in that case we still fall back to first-found in slot order.
+local GUN_DAMAGE_TYPE = {
+    ["pistol"]          = "physical",
+    ["submachine-gun"]  = "physical",
+    ["shotgun"]         = "physical",
+    ["combat-shotgun"]  = "physical",
+    ["rocket-launcher"] = "explosion",
+    ["flamethrower"]    = "fire",
+    ["teslagun"]        = "electric",
+}
+
 -- Maximum distance (squared, in tiles) within which an equipment kill is
 -- attributed to a nearby player.  20 tiles ≈ max personal-laser-defense range
 -- after rank-4 scaling.
@@ -227,16 +242,38 @@ script.on_event(defines.events.on_entity_died, function(event)
         local gun_inv = cause.get_inventory(defines.inventory.character_guns)
         if not gun_inv then return end
 
-        -- Factorio exposes no "active gun slot" API for characters, so check
-        -- all gun slots and attribute to the first tracked weapon found.
+        -- Use damage_type to pick the right gun when several tracked weapons
+        -- are equipped.  Tesla gun deals "electric", rocket launcher "explosion",
+        -- flamethrower "fire" — all unambiguous.  Multiple physical weapons
+        -- (pistol/SMG/shotgun) share "physical" so the first one in slot order
+        -- wins in that case, which is unavoidable without a selected-gun API.
+        local dmg_type = event.damage_type and event.damage_type.name
         local active_base = nil
-        for i = 1, #gun_inv do
-            local stack = gun_inv[i]
-            if stack.valid_for_read then
-                local base = parse_item(stack.name)
-                if base and IS_TRACKED_GUN[base] then
-                    active_base = base
-                    break
+
+        -- First pass: find a gun whose damage type matches the kill.
+        if dmg_type then
+            for i = 1, #gun_inv do
+                local stack = gun_inv[i]
+                if stack.valid_for_read then
+                    local base = parse_item(stack.name)
+                    if base and IS_TRACKED_GUN[base] and GUN_DAMAGE_TYPE[base] == dmg_type then
+                        active_base = base
+                        break
+                    end
+                end
+            end
+        end
+
+        -- Second pass: fall back to first tracked gun in any slot.
+        if not active_base then
+            for i = 1, #gun_inv do
+                local stack = gun_inv[i]
+                if stack.valid_for_read then
+                    local base = parse_item(stack.name)
+                    if base and IS_TRACKED_GUN[base] then
+                        active_base = base
+                        break
+                    end
                 end
             end
         end
