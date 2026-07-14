@@ -177,7 +177,7 @@ Removes placement restrictions for Overgrowth yumako/jellynut soil on Gleba. Pla
 
 ---
 
-### CustomHeroWeapons `1.0.3`
+### CustomHeroWeapons `1.0.4`
 Handheld weapons and power armor equipment that level up through kills, gaining fire rate, range, and damage bonuses at each rank. Includes a new Personal Tesla Defense equipment module.
 
 **Original concept:** New mod (no upstream)
@@ -219,6 +219,9 @@ Handheld weapons and power armor equipment that level up through kills, gaining 
 
 **v1.0.3:**
 - Personal Tesla Defense armor-grid sprite is now a layered sprite matching the inventory icon: tinted blue laser-defense body with the tesla orb overlaid in the bottom-right corner, rather than the body tint alone
+
+**v1.0.4:**
+- Fixed Personal Tesla Defense armor-grid sprite second layer (tesla orb) not rendering: `ammo-category/tesla.png` is a grayscale+alpha PNG which the Sprite layer system renders as invisible; switched to `tesla-ammo.png` (RGBA) which displays correctly
 
 ---
 

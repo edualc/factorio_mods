@@ -179,9 +179,10 @@ if mods["space-age"] and data.raw["gun"]["teslagun"] then
                     tint = {r = 0.5, g = 0.8, b = 1.0, a = 1.0},
                 },
                 {
-                    -- ammo-category/tesla.png is a 120×64 mipmap strip; width=64 reads
-                    -- only the first (full-size) 64×64 frame.
-                    filename = "__space-age__/graphics/icons/ammo-category/tesla.png",
+                    -- tesla-ammo.png is a 120×64 RGBA mipmap strip; width=64 crops
+                    -- the first (full-size) 64×64 frame. ammo-category/tesla.png is
+                    -- grayscale+alpha and does not render in the sprite layer system.
+                    filename = "__space-age__/graphics/icons/tesla-ammo.png",
                     width = 64,
                     height = 64,
                     priority = "medium",
