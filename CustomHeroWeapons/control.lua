@@ -105,6 +105,39 @@ local function set_kills(player_index, base_name, kills)
     storage.heroweapons[player_index][base_name] = kills
 end
 
+-- Snapshot ammo counts for a player and return the base gun name of the slot
+-- whose ammo just decreased (nil if no decrease or no tracked gun there).
+-- Reuses the existing snapshot table in place to avoid allocation each call.
+local function update_ammo_snapshot(player_index, gun_inv, ammo_inv)
+    local n = #ammo_inv
+    local prev = storage.ammo_snapshot[player_index]
+    local fired_base = nil
+
+    -- Build current counts.
+    local cur = {}
+    for i = 1, n do
+        cur[i] = ammo_inv[i].valid_for_read and ammo_inv[i].count or 0
+    end
+
+    -- Diff against previous snapshot to find which slot fired.
+    if prev then
+        for i = 1, n do
+            if cur[i] < (prev[i] or 0) then
+                local gun_stack = gun_inv[i]
+                if gun_stack.valid_for_read then
+                    local base = parse_item(gun_stack.name)
+                    if base and IS_TRACKED_GUN[base] then
+                        fired_base = base
+                    end
+                end
+            end
+        end
+    end
+
+    storage.ammo_snapshot[player_index] = cur
+    return fired_base
+end
+
 -- ── Rank-up helpers ───────────────────────────────────────────────────────────
 
 -- Replace the first gun slot containing base_name (or any ranked version) with
@@ -219,11 +252,33 @@ end
 -- ── Event handlers ────────────────────────────────────────────────────────────
 
 script.on_init(function()
-    storage.heroweapons = {}
+    storage.heroweapons    = {}
+    storage.active_gun     = {}   -- [player_index] = base_weapon_name last fired
+    storage.ammo_snapshot  = {}   -- [player_index] = {[slot] = count}
 end)
 
 script.on_configuration_changed(function()
-    storage.heroweapons = storage.heroweapons or {}
+    storage.heroweapons   = storage.heroweapons   or {}
+    storage.active_gun    = storage.active_gun    or {}
+    storage.ammo_snapshot = storage.ammo_snapshot or {}
+end)
+
+-- Track which gun was most recently fired by watching ammo consumption.
+-- Fires on every shot for ammo-consuming guns (pistol/SMG/shotgun/rocket/tesla).
+-- Flamethrower uses fluid and never triggers this; damage_type "fire" covers it.
+script.on_event(defines.events.on_player_ammo_inventory_changed, function(event)
+    local player = game.players[event.player_index]
+    if not (player and player.character and player.character.valid) then return end
+    local char = player.character
+
+    local gun_inv  = char.get_inventory(defines.inventory.character_guns)
+    local ammo_inv = char.get_inventory(defines.inventory.character_ammo)
+    if not (gun_inv and ammo_inv) then return end
+
+    local fired = update_ammo_snapshot(event.player_index, gun_inv, ammo_inv)
+    if fired then
+        storage.active_gun[event.player_index] = fired
+    end
 end)
 
 script.on_event(defines.events.on_entity_died, function(event)
@@ -242,29 +297,40 @@ script.on_event(defines.events.on_entity_died, function(event)
         local gun_inv = cause.get_inventory(defines.inventory.character_guns)
         if not gun_inv then return end
 
-        -- Use damage_type to pick the right gun when several tracked weapons
-        -- are equipped.  Tesla gun deals "electric", rocket launcher "explosion",
-        -- flamethrower "fire" — all unambiguous.  Multiple physical weapons
-        -- (pistol/SMG/shotgun) share "physical" so the first one in slot order
-        -- wins in that case, which is unavoidable without a selected-gun API.
-        local dmg_type = event.damage_type and event.damage_type.name
         local active_base = nil
 
-        -- First pass: find a gun whose damage type matches the kill.
-        if dmg_type then
+        -- Priority 1: ammo-consumption cache (most accurate; set on every shot).
+        -- Validate the cached gun is still present — player may have dropped it.
+        local cached = storage.active_gun[player.index]
+        if cached then
             for i = 1, #gun_inv do
                 local stack = gun_inv[i]
-                if stack.valid_for_read then
-                    local base = parse_item(stack.name)
-                    if base and IS_TRACKED_GUN[base] and GUN_DAMAGE_TYPE[base] == dmg_type then
-                        active_base = base
-                        break
+                if stack.valid_for_read and parse_item(stack.name) == cached then
+                    active_base = cached
+                    break
+                end
+            end
+        end
+
+        -- Priority 2: damage type (handles flamethrower "fire" and resolves
+        -- cases where the ammo cache is stale or absent).
+        if not active_base then
+            local dmg_type = event.damage_type and event.damage_type.name
+            if dmg_type then
+                for i = 1, #gun_inv do
+                    local stack = gun_inv[i]
+                    if stack.valid_for_read then
+                        local base = parse_item(stack.name)
+                        if base and IS_TRACKED_GUN[base] and GUN_DAMAGE_TYPE[base] == dmg_type then
+                            active_base = base
+                            break
+                        end
                     end
                 end
             end
         end
 
-        -- Second pass: fall back to first tracked gun in any slot.
+        -- Priority 3: first tracked gun in slot order.
         if not active_base then
             for i = 1, #gun_inv do
                 local stack = gun_inv[i]
@@ -316,5 +382,8 @@ script.on_event(defines.events.on_player_gun_inventory_changed, function(event)
 end)
 
 script.on_event(defines.events.on_player_joined_game, function(event)
-    storage.heroweapons[event.player_index] = storage.heroweapons[event.player_index] or {}
+    local pi = event.player_index
+    storage.heroweapons[pi]   = storage.heroweapons[pi]   or {}
+    storage.active_gun[pi]    = storage.active_gun[pi]    or nil
+    storage.ammo_snapshot[pi] = storage.ammo_snapshot[pi] or nil
 end)
