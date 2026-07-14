@@ -177,6 +177,33 @@ Removes placement restrictions for Overgrowth yumako/jellynut soil on Gleba. Pla
 
 ---
 
+### CustomHeroWeapons `1.0.0`
+Handheld weapons and power armor equipment that level up through kills, gaining fire rate, range, and damage bonuses at each rank. Includes a new Personal Tesla Defense equipment module.
+
+**Original concept:** New mod (no upstream)
+
+**Weapons and equipment covered:**
+- Guns: Pistol, Submachine gun, Shotgun, Combat shotgun, Rocket launcher, Flamethrower, Tesla gun (Space Age)
+- Equipment: Personal Laser Defense, Personal Tesla Defense (new, Space Age)
+
+**Rank system:**
+- Kills with a weapon are tracked per player per weapon type in `storage`
+- Thresholds default to 50 / 250 / 1000 kills for ranks 2, 3, 4 (configurable via mod settings)
+- On rank-up, the item in the gun slot (or equipment grid slot) is replaced in-place with the ranked variant
+- Ranked guns carry 15% / 30% / 45% faster fire rate, 15% / 30% / 50% longer range, and 20% / 40% / 60% more damage per shot compared to the base weapon
+- Switching to a tracked gun auto-upgrades it if saved kill count already qualifies
+- Badge overlay on ranked item icons shown when CustomHeroTurrets is also installed
+
+**Personal Tesla Defense equipment (new item):**
+- Active-defense equipment analogous to personal laser defense, targeting nearby enemies automatically
+- Fires twice as hard but at 2/3 the fire rate; uses laser-category energy-powered ammo (no physical ammo needed)
+- Recipe: 20 processing units + 5 low-density structures + 5 tesla turrets; unlocked by `tesla-weapons` technology
+
+**v1.0.0:**
+- Initial release
+
+---
+
 ## Credits
 
 All original mods and their concepts belong to their respective authors. These forks exist solely for personal use to bring the mods up to date with Factorio 2.1 and to add quality-of-life changes.

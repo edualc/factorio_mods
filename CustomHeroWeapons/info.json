@@ -1,0 +1,13 @@
+{
+  "name": "CustomHeroWeapons",
+  "version": "1.0.0",
+  "factorio_version": "2.1",
+  "title": "Custom Hero Weapons",
+  "author": "Claude Lehmann",
+  "description": "Handheld weapons and power armor equipment that level up through kills, gaining fire rate, range, and damage bonuses at each rank. Includes a new Personal Tesla Defense equipment module.",
+  "dependencies": [
+    "base >= 2.1.0",
+    "? space-age >= 2.1.0",
+    "? CustomHeroTurrets"
+  ]
+}
