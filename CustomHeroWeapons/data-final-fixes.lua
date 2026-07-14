@@ -54,8 +54,8 @@ local function create_ranked_gun(base_name, rank)
 
     local ranked = table.deepcopy(base)
     ranked.name = ranked_name(base_name, rank)
-    ranked.localised_name = {"heroweapons.ranked-item-name", {"item-name." .. base_name}, rank}
-    ranked.localised_description = {"heroweapons.ranked-gun-desc", rank}
+    ranked.localised_name = {"heroweapons.ranked-item-name", {"item-name." .. base_name}, tostring(rank)}
+    ranked.localised_description = {"heroweapons.ranked-gun-desc", tostring(rank)}
 
     apply_gun_rank(ranked, rank)
 
@@ -75,8 +75,8 @@ local function create_ranked_equipment(base_name, rank)
 
     local ranked = table.deepcopy(base)
     ranked.name = ranked_name(base_name, rank)
-    ranked.localised_name = {"heroweapons.ranked-item-name", {"equipment-name." .. base_name}, rank}
-    ranked.localised_description = {"heroweapons.ranked-equipment-desc", rank}
+    ranked.localised_name = {"heroweapons.ranked-item-name", {"equipment-name." .. base_name}, tostring(rank)}
+    ranked.localised_description = {"heroweapons.ranked-equipment-desc", tostring(rank)}
 
     apply_equipment_rank(ranked, rank)
 
