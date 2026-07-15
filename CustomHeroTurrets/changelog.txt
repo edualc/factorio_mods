@@ -1,4 +1,23 @@
 ﻿---------------------------------------------------------------------------------------------------
+Version: 2.1.4
+Date: 2026-07-16
+  Bugfixes:
+    - Fixed rank-up resetting a turret's quality tier back to normal: the entity-swap in
+      local_replace_turret creates the higher-rank replacement via surface.create_entity
+      without a "quality" field, which defaults to normal, so a legendary turret silently
+      lost its quality every time it ranked up. Now reads entity.quality before destroying
+      the old entity and passes it to create_entity explicitly.
+---------------------------------------------------------------------------------------------------
+Version: 2.1.3
+Date: 2026-07-14
+  Bugfixes:
+    - Turrets now carry forward their full configuration when the entity is swapped on
+      level-up: priority target list and ignore_unprioritised_targets flag (fixes e.g.
+      rocket turrets on Aquilo losing their asteroid-type filter), circuit network
+      connections, circuit control behavior (enable/disable condition), and the
+      disabled_by_script state. All reads/writes are pcall-guarded so turret types that
+      don't support a given property fail silently instead of erroring.
+---------------------------------------------------------------------------------------------------
 Version: 2.1.1
 Date: 2026-07-13
   Bugfixes:
