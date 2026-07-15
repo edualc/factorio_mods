@@ -282,11 +282,19 @@ local function process(rec, now)
       -- with their full fire immunity (CustomRobotsResistFire).
       if ROBOT_TYPES[e.type] then dmg = dmg * ROBOT_RESISTANCE end
       rec.last_tick = now
-      e.damage(dmg, enemy_force(), INFECTION_DAMAGE_TYPE)
-      -- damage() may have killed it; the resulting on_entity_died (enemy-caused)
-      -- drives the spawn elsewhere. Drop our record either way (the marker is
-      -- entity-bound, so the engine already destroyed it with the entity).
-      if not e.valid then destroy_marker(rec); return false end
+      -- Direct health write instead of entity.damage(): avoids firing on_entity_damaged
+      -- for every DoT tick (up to 256/tick with a large infected set), which saves the
+      -- engine resistance pipeline and the Lua fan-out through all three damage handlers.
+      -- INFECTION_DAMAGE_TYPE has no building resistances so the net damage is identical.
+      -- Death is attributed to enemy_force via entity.die() so spawning.on_entity_died
+      -- still fires correctly — it checks event.force, which die() sets from its argument.
+      local new_health = e.health - dmg
+      if new_health <= 0 then
+        destroy_marker(rec)
+        e.die(enemy_force())
+        return false
+      end
+      e.health = new_health
     end
   end
   return true

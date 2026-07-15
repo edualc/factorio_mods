@@ -48,7 +48,7 @@ Adds a basic RPG system to the game — XP gain, level-ups, and skills for the p
 
 ---
 
-### CustomZomboid `2.0.7`
+### CustomZomboid `2.0.8`
 Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infection spreads through your logistics network, and corpses reanimate. Requires Space Age.
 
 **Original mod:** [Zomboid](https://mods.factorio.com/mod/Zomboid) by **Martin Howarth**
@@ -119,6 +119,12 @@ Turns biters into a zombie horde. Destroyed buildings spawn new zombies, infecti
 
 **v2.0.7:**
 - Fixed multiplayer desync: `factory_reference`'s 5-minute result cache (`factory_cache_tick/center/radius/buildings` in `horde.lua`) was module-local instead of stored in `storage`, so a freshly-joined client's Lua VM started with a cold cache while the host's stayed warm — the two could return different factory center/radius/buildings for the same tick whenever a cached read raced a join. Same root cause class as the `fold_cache` fix in `swarm.lua` (v2.0.2). Exposure increased sharply in v2.0.3 with the unconditional 15-minute periodic sweep and the on-demand `/zomtorio-sweep` command, both of which call `factory_reference` regardless of whether a horde event is active — making the stale-cache-vs-cold-cache race far more likely to be hit in a real session. Cache now lives in `storage.zomtorio.factory_cache`, identical on all clients
+
+**v2.0.8:**
+- Performance: `nest.on_entity_spawned` now caches `local_swarm_pop` (find_entities_filtered), `nest_budget` (get_pollution), and `nest_evo` (get_evolution_factor) per spawner with TTLs of 1 s / 5 s / 5 s respectively — once the global zombie cap is full (the normal state in large games), every engine nest spawn previously paid all three API calls; with hundreds of nests this was hundreds of find_entities_filtered per second. Caches are stored in `storage` (same fix class as fold_cache v2.0.2 and factory_cache v2.0.7) so joining clients share the host's warm cache. Bucket key computation is also moved before the pop/budget check so it is shared with the accumulator flush rather than recomputed
+- Performance: `character_near` in `swarm.on_entity_damaged` now uses a cached character-position list (TTL 30 ticks, stored in `storage`) instead of calling `find_entities_filtered` per damage event — with laser turrets firing at many clusters simultaneously this was the dominant hot path during combat. Cache hits do only O(player count) distance² comparisons
+- Performance: infection building DoT in `process()` now writes `entity.health` directly and calls `entity.die()` on death instead of `entity.damage()` — `entity.damage()` fires `on_entity_damaged` on every DoT tick (up to 256 per tick with a large infected factory), sending each through the engine resistance pipeline and the Lua damage handler fan-out for no net effect since `INFECTION_DAMAGE_TYPE` has no building resistances. `spawning.on_entity_died` still triggers zombie spawning on infected-building death because it checks `event.force`, which `entity.die(enemy_force())` sets correctly
+- Performance: `on_entity_damaged` fan-out in `control.lua` now skips calling `swarm.on_entity_damaged` and `melee.on_entity_damaged` for non-unit entities (buildings, robots, characters hit by zombie attacks etc.) — both handlers categorically ignore non-unit entities but were being invoked for every building-damage event anyway, including any remaining non-DoT hits from zombies attacking structures
 
 ---
 

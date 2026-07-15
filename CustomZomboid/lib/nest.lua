@@ -79,11 +79,48 @@ local function nest_cluster_threshold(evo)
   return math.max(1, math.floor(1 + (NEST_CLUSTER_MAX - 1) * (evo or 0)))
 end
 
-local function nest_evo(surface)
+-- Per-nest caches stored in storage (not module-local) so joining clients receive
+-- the same cache state as the host. Module-local caches start empty on join and
+-- would diverge from the host's warm cache on the first lookup — same root cause as
+-- the fold_cache (v2.0.2) and factory_cache (v2.0.7) desync fixes.
+--
+-- These are the dominant hot-path costs: once the global zombie cap is full (the
+-- normal state in any large game), EVERY engine nest spawn calls local_swarm_pop
+-- (find_entities_filtered) and nest_budget (get_pollution). With hundreds of nests
+-- that's hundreds of expensive API calls per second; TTL caches reduce this to one
+-- call per nest per TTL window.
+--
+-- storage.zomtorio.nest_pop_cache    : bucket_key -> {v=N, t=tick}
+-- storage.zomtorio.nest_budget_cache : bucket_key -> {v=N, t=tick}
+-- storage.zomtorio.nest_evo_cache    : surface_index -> {v=N, t=tick}
+local POP_TTL    = 60   -- 1 s: local cluster population changes at per-second granularity
+local BUDGET_TTL = 300  -- 5 s: pollution changes slowly
+local EVO_TTL    = 300  -- 5 s: evolution changes very slowly
+
+local function nest_caches()
+  storage.zomtorio = storage.zomtorio or {}
+  local z = storage.zomtorio
+  if not z.nest_pop_cache    then z.nest_pop_cache    = {} end
+  if not z.nest_budget_cache then z.nest_budget_cache = {} end
+  if not z.nest_evo_cache    then z.nest_evo_cache    = {} end
+  return z.nest_pop_cache, z.nest_budget_cache, z.nest_evo_cache
+end
+
+local function nest_evo_raw(surface)
   local enemy = game and game.forces and game.forces[util.ENEMY_FORCE]
   if not (enemy and surface and surface.valid) then return 0 end
   local ok, e = pcall(function() return enemy.get_evolution_factor(surface) end)
   return (ok and e) or 0
+end
+
+local function nest_evo(surface, evo_cache)
+  if not (surface and surface.valid) then return 0 end
+  local now = game.tick
+  local c = evo_cache[surface.index]
+  if c and now - c.t < EVO_TTL then return c.v end
+  local v = nest_evo_raw(surface)
+  evo_cache[surface.index] = {v = v, t = now}
+  return v
 end
 
 -- Optional test override of the budget (runtime-global settings can't be written by
@@ -92,7 +129,7 @@ local budget_override
 
 --- The nest swarm budget at `pos`: interpolates between the base and max settings on
 --- local chunk pollution (R-GEN: busier nests sustain bigger swarms).
-local function nest_budget(surface, pos)
+local function nest_budget_raw(surface, pos)
   if budget_override ~= nil then return budget_override end
   local base = config.nest_swarm_base() or 50
   local maxb = config.nest_swarm_max() or 1000
@@ -105,10 +142,20 @@ local function nest_budget(surface, pos)
   return base + (maxb - base) * frac
 end
 
+local function nest_budget(surface, pos, key, budget_cache)
+  if budget_override ~= nil then return budget_override end
+  local now = game.tick
+  local c = budget_cache[key]
+  if c and now - c.t < BUDGET_TTL then return c.v end
+  local v = nest_budget_raw(surface, pos)
+  budget_cache[key] = {v = v, t = now}
+  return v
+end
+
 --- Total population of tracked clusters within NEST_RADIUS of `pos`, counting both
 --- the day and night cluster forms (HORDE_ALL) so the measurement isn't fooled at
 --- night when nearby swarms have been swapped to their night variant.
-local function local_swarm_pop(surface, pos)
+local function local_swarm_pop_raw(surface, pos)
   local found = surface.find_entities_filtered {
     name = tiers.SWARM_ALL, position = pos, radius = NEST_RADIUS,
   }
@@ -117,6 +164,15 @@ local function local_swarm_pop(surface, pos)
     total = total + (swarm.pop_of(u) or 0)
   end
   return total
+end
+
+local function local_swarm_pop(surface, pos, key, pop_cache)
+  local now = game.tick
+  local c = pop_cache[key]
+  if c and now - c.t < POP_TTL then return c.v end
+  local v = local_swarm_pop_raw(surface, pos)
+  pop_cache[key] = {v = v, t = now}
+  return v
 end
 
 --- Route one engine-spawned nest unit through the global cap (see header).
@@ -135,10 +191,25 @@ function nest.on_entity_spawned(event)
     return
   end
 
-  -- Cap full: this nest's output must fold into a local cluster -- unless the local
-  -- swarm is already at its (pollution-scaled) budget, in which case throttle.
+  -- Cap full: compute the stable bucket key now so it's shared between the
+  -- pop/budget check below and the accumulator flush — avoids recomputing it and
+  -- lets the cached lookups key on a stable per-nest identifier.
   local pos = entity.position
-  if local_swarm_pop(surface, pos) >= nest_budget(surface, pos) then
+  local spawner = event.spawner
+  local bucket_key
+  if spawner and spawner.valid then
+    bucket_key = spawner.unit_number
+  else
+    local cx = math.floor(pos.x / 32)
+    local cy = math.floor(pos.y / 32)
+    bucket_key = cx .. ":" .. cy
+  end
+
+  local pop_cache, budget_cache, evo_cache = nest_caches()
+
+  -- This nest's output must fold into a local cluster -- unless the local
+  -- swarm is already at its (pollution-scaled) budget, in which case throttle.
+  if local_swarm_pop(surface, pos, bucket_key, pop_cache) >= nest_budget(surface, pos, bucket_key, budget_cache) then
     -- Saturated: drop the spawn. Deliberately NO release_from_spawner -- if the
     -- engine keeps counting this as owned and so holds the spawner off, that is
     -- exactly the throttle we want.
@@ -153,22 +224,12 @@ function nest.on_entity_spawned(event)
   pcall(function() entity.release_from_spawner() end)
   entity.destroy()
 
-  -- Accumulate per-nest before flushing. Bucket key: spawner unit_number (stable
-  -- per-nest ID); falls back to a position-cell key if spawner is unavailable.
-  local spawner = event.spawner
-  local bucket_key
-  if spawner and spawner.valid then
-    bucket_key = spawner.unit_number
-  else
-    local cx = math.floor(pos.x / 32)
-    local cy = math.floor(pos.y / 32)
-    bucket_key = cx .. ":" .. cy
-  end
-  storage.zomtorio = storage.zomtorio or {}
-  local buckets = storage.zomtorio.nest_buckets or {}
-  storage.zomtorio.nest_buckets = buckets
+  -- Accumulate per-nest before flushing.
+  local z = storage.zomtorio
+  local buckets = z.nest_buckets or {}
+  z.nest_buckets = buckets
   buckets[bucket_key] = (buckets[bucket_key] or 0) + 1
-  if buckets[bucket_key] < nest_cluster_threshold(nest_evo(surface)) then return end
+  if buckets[bucket_key] < nest_cluster_threshold(nest_evo(surface, evo_cache)) then return end
   local flush = buckets[bucket_key]
   buckets[bucket_key] = 0
   swarm.fold(surface, pos, flush, tier, util.ENEMY_FORCE, 0, kind)

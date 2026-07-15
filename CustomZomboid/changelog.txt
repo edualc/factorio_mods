@@ -1,4 +1,30 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.0.8
+Date: 2026-07-15
+  Optimizations:
+    - nest.on_entity_spawned now caches local_swarm_pop (find_entities_filtered), nest_budget
+      (get_pollution), and nest_evo (get_evolution_factor) per spawner with TTLs of 1 s / 5 s /
+      5 s. Once the global zombie cap is full (the normal state in large games), every engine nest
+      spawn previously paid all three API calls; with hundreds of nests this amounted to hundreds
+      of find_entities_filtered calls per second. Caches live in storage so joining clients share
+      the host's warm cache (same fix class as fold_cache v2.0.2 and factory_cache v2.0.7).
+      Bucket key computation is also moved before the pop/budget check so it is shared with the
+      accumulator flush rather than recomputed.
+    - character_near (swarm.on_entity_damaged) now uses a cached character-position list
+      (TTL 30 ticks, stored in storage) instead of find_entities_filtered per damage event.
+      With laser turrets firing at many clusters simultaneously this was the dominant hot path
+      during combat; cache hits do only O(player count) distance^2 comparisons.
+    - Infection building DoT in process() now writes entity.health directly and calls
+      entity.die() on death instead of entity.damage(). entity.damage() fired on_entity_damaged
+      on every DoT tick (up to 256/tick with a large infected factory), sending each through
+      the engine resistance pipeline and the Lua damage handler fan-out for no net effect.
+      Zombie spawning on infected-building death is preserved: spawning.on_entity_died checks
+      event.force, which entity.die(enemy_force()) sets correctly.
+    - on_entity_damaged fan-out in control.lua now skips swarm and melee handlers for
+      non-unit entities (buildings, robots, characters). Both handlers categorically ignore
+      non-unit damage events but were being called for every building hit including zombie
+      attacks on structures.
+---------------------------------------------------------------------------------------------------
 Version: 2.0.7
 Date: 2026-07-12
   Bugfixes:

@@ -82,6 +82,10 @@ end
 --   the live horde by POPULATION, dispersion-proof; see swarm.horde_population)
 -- storage.zomtorio.fold_cache       : "kind:tier:cx:cy" -> unit_number (fold cache)
 -- storage.zomtorio.fold_cache_tick  : tick of last fold_cache flush
+-- storage.zomtorio.char_pos_cache   : {tick, surface_index, positions=[{x,y},...]}
+--   Cached character positions for burst checks. Stored in storage (not module-local)
+--   so joining clients inherit the server's cache rather than starting cold and
+--   diverging on the first burst check. Refreshed every CHAR_CACHE_TTL ticks.
 
 local function state()
   storage.zomtorio = storage.zomtorio or {}
@@ -155,13 +159,44 @@ local function cap_room()
   return math.max(0, zombie_cap() - state().individual_count)
 end
 
---- True if a character (a stand-in for "a player") is within BURST_RADIUS.
+-- Squared burst radius for cheap distance comparisons without find_entities_filtered.
+local BURST_RADIUS_SQ = BURST_RADIUS * BURST_RADIUS
+
+-- How many ticks to reuse the character-position cache before refreshing.
+-- 30 ticks = 0.5 s. Players move ~5 tiles in that window vs BURST_RADIUS = 32 tiles,
+-- so the cache is accurate enough to gate burst spawns.
+local CHAR_CACHE_TTL = 30
+
+--- Build (or return a cached) list of character positions on `surface`. Called on
+--- every swarm hit when cap has room, so the find_entities_filtered is amortized
+--- over all hits in the TTL window rather than paid per event.
+local function get_char_positions(surface)
+  local z = state()
+  local now = game.tick
+  local c = z.char_pos_cache
+  if c and c.surface_index == surface.index and now - c.tick < CHAR_CACHE_TTL then
+    return c.positions
+  end
+  local positions = {}
+  for _, ch in ipairs(surface.find_entities_filtered { type = "character" }) do
+    if ch.valid then positions[#positions + 1] = ch.position end
+  end
+  z.char_pos_cache = {tick = now, surface_index = surface.index, positions = positions}
+  return positions
+end
+
+--- True if a character is within BURST_RADIUS of `pos`. Uses a cached position list
+--- so the expensive find_entities_filtered fires at most once per CHAR_CACHE_TTL
+--- ticks rather than once per damage event.
 local function character_near(surface, pos)
   if not (surface and surface.valid) then return false end
-  local found = surface.find_entities_filtered {
-    type = "character", position = pos, radius = BURST_RADIUS, limit = 1,
-  }
-  return #found > 0
+  local chars = get_char_positions(surface)
+  local px, py = pos.x, pos.y
+  for _, cp in ipairs(chars) do
+    local dx, dy = cp.x - px, cp.y - py
+    if dx*dx + dy*dy <= BURST_RADIUS_SQ then return true end
+  end
+  return false
 end
 
 --- Register an individual zombie we created so the cap counts it exactly.

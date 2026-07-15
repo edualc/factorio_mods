@@ -77,15 +77,19 @@ script.on_event(defines.events.on_tick, function(event)
 end)
 
 ------------------------------------------------------------------- damage
--- NOTE: intentionally UNFILTERED. The three consumers between them care about a
--- broad span of damaged entities (horde units, every infectable building/robot/
--- character, and every enemy unit for melee), so a LuaEntityDamagedEventFilter
--- union would exclude little. Each module early-outs cheaply (one type/name/
--- validity check before any work), which is the real safeguard against per-hit cost.
+-- NOTE: intentionally UNFILTERED for infection (needs characters + buildings).
+-- swarm and melee only ever operate on enemy UNIT entities (clusters, individuals),
+-- so we skip both for non-unit damage events. This matters because infection's DoT
+-- calls entity.health writes (no longer entity.damage), but building-zombie-attacks
+-- and other non-unit hits would still fan out needlessly to both handlers otherwise.
 script.on_event(defines.events.on_entity_damaged, function(event)
+  local entity = event.entity
+  if not (entity and entity.valid) then return end
   infection.on_entity_damaged(event)
-  swarm.on_entity_damaged(event)
-  melee.on_entity_damaged(event)
+  if entity.type == "unit" then
+    swarm.on_entity_damaged(event)
+    melee.on_entity_damaged(event)
+  end
 end)
 
 ------------------------------------------------------------------- death
