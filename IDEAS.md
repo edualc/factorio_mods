@@ -4,75 +4,70 @@ Potential improvements to investigate and implement later.
 
 ---
 
-## CustomHeroWeapons (new mod idea)
+## Performance investigations
 
-### Hero-rank upgrades for player weapons and armor equipment
-Mirror the CustomHeroTurrets rank system but for handheld weapons and damage-dealing
-power armor equipment. Weapons gain XP from kills and progress through tiers (e.g.
-rank 1–4), each rank increasing damage, fire rate, magazine size, range, or
-type-specific stats depending on weapon type.
+### a) Gleba enemies leaking into Zomboid handlers
+`on_entity_damaged` is unfiltered and the new control.lua guard passes events to
+`swarm.on_entity_damaged` and `melee.on_entity_damaged` whenever `entity.type == "unit"`.
+Gleba pentapods are enemy units — they will pass this guard and invoke both handlers
+(each exits quickly at the name-lookup early-out, but the calls still fire).
 
-Weapons to cover (at minimum):
-- Flamethrower (fluid ammo, fire damage)
-- Tesla gun (electric damage)
-- Rocket launcher / Rocket (explosive splash)
-- Shotgun / Combat shotgun (physical, spread)
-- Submachine gun / Pistol (basic physical)
-- Personal laser defense equipment (electric, auto-targeting) — ranks increase
-  range and shooting speed
-- Personal tesla defense equipment (see new item below) — ranks increase range,
-  shooting speed, and lightning fork chance
+With heavy Gleba combat this could add measurable overhead. Check whether adding a
+`planets.is_active(entity.surface)` guard at the top of `swarm.on_entity_damaged` and
+`melee.on_entity_damaged` (or in the control.lua fan-out before calling them) would
+eliminate Gleba event noise. The infection handler already has this guard.
 
-### New item: Personal tesla defense equipment
-A power armor module analogous to personal laser defense but dealing chained
-electric damage — the armor equivalent of the tesla gun. Uses the same fork
-mechanic as tesla gun ammo (lightning chains to nearby targets on hit).
+### b) CustomRPGsystem — magic spell kill-handler performance
+`rpg_fireball` and `rpg_hadouken` deal splash damage that can kill many enemies per
+cast. Each killed entity fires `on_entity_died`. If the RPG kill handler does a
+full player-grid scan per kill (the pattern that was fixed in CustomHeroWeapons), a
+single spell cast in a dense horde could trigger dozens of expensive scans.
 
-Per-rank progression:
-- Range increases each rank
-- Shooting speed increases each rank
-- Fork chance increases each rank (e.g. 30% → 45% → 60% → 80%)
+Audit `CustomRPGsystem/control.lua` (or wherever the kill-XP handler lives) for the
+same all-players-grid-scan issue. Apply the same fix if found: cache the active
+player → weapon/equipment mapping rather than scanning every player's armor grid on
+each entity death.
 
-Recipe (same structure as personal laser defense):
-- 20 processing units
-- 5 low-density structures
-- 5 tesla turrets
+### c) CustomHeroWeapons — personal tesla defense attack lag
+The personal tesla defense fires chain lightning that jumps across many nearby
+targets. Each jump may fire `on_entity_damaged` or `on_entity_died` for each hit
+target. If the CustomHeroWeapons kill handler attributes hits per-target and
+recomputes the grid slot lookup on each, a single tesla burst in a dense cluster
+could fire many expensive callbacks.
 
-Unlocked by: the same technology that unlocks the tesla turret (`tesla-turret`
-research), so it becomes available at the same progression point.
+Profile kill attribution cost during tesla defense use against large swarms. Check
+whether the equipment kill counter is incremented once per attack cycle or once per
+individual hit/kill, and whether any grid scan happens per kill.
 
-Implementation notes:
-- XP tracking per weapon/equipment type stored in `storage` per player, similar to how
-  HeroTurrets tracks kill counts per turret entity.
-- Rank-up replaces the item in the player's inventory/gun slot or armor grid with a
-  ranked variant (e.g. `flamethrower-rank-2`), same approach as HeroTurrets swapping
-  entities on level-up.
-- For equipment grid items, watch for `on_player_armor_inventory_changed` or poll the
-  grid to detect when a ranked item needs swapping — there is no direct "equipment
-  damaged" event, but kills can still be attributed to the player owning the armor.
-- Ranked weapon prototypes defined in `data-final-fixes.lua` after all DLC
-  weapon prototypes are loaded — same pattern as HeroTurrets and CustomCheevos.
-- Consider integrating with CustomRPGsystem XP so weapon kills feed both the
-  weapon's own rank and the player's RPG level.
-- Rank insignia shown via a custom item icon overlay or item description suffix.
+### d) Reduce total Zomboid entity count on Nauvis
+The sustained 5.5ms "Unit" engine cost scales directly with how many unit entities
+are alive on Nauvis at once (clusters + individuals). Approaches to investigate:
 
-### Known limitations / future work
+- **Larger cluster floor**: raise the `⌊50 × evo⌋` horde cluster floor or
+  `NEST_CLUSTER_MAX` so the same zombie population fits in fewer, denser entities.
+  e.g. doubling the floor halves entity count at the cost of coarser cluster granularity.
 
-- **Kill count should be per item instance, not per weapon type.** Currently a
-  single kill counter per player per weapon name is shared across all copies of
-  that item (e.g. a stack of 10 personal tesla defenses all read the same count).
-  Ideally each slottable item in the armor grid tracks its own kills independently,
-  so two equipped copies of the same equipment can be at different ranks.
-  CustomHeroTurrets solves this the same way: it reads `entity.kills` (a native
-  engine counter on the placed turret) and persists it through pickup/placement via
-  item tags (`item.set_tag("kills", entity.kills)` on deconstruct,
-  `entity.kills = stack.get_tag("kills")` on place). Equipment items in the armor
-  grid are also LuaItemStacks, so the same tag approach should transfer directly —
-  store kills in the item tag, read it back when the equipment is placed into a grid.
+- **Distant-cluster merging**: periodically scan for clusters that are far from the
+  factory and from any player, and fold them into nearby clusters. Stranded zombies
+  from past hordes contribute to entity count without causing gameplay pressure.
 
-- **Audit CustomRPGsystem magic for the same on_entity_died performance problem.**
-  The rpg_fireball / rpg_hadouken spells likely fire many kills per cast via splash,
-  each triggering on_entity_died. Check whether the magic kill handler has the same
-  all-players grid-scan issue that was found and fixed in CustomHeroWeapons, and
-  apply the same caching approach if so.
+- **Hard cap on live cluster count**: track total cluster entity count in storage and
+  refuse to create new clusters beyond a ceiling, folding overflow into existing ones.
+  Complements the individual zombie cap already in place.
 
+- **Faster sweep cadence for stranded units**: the 15-minute periodic sweep
+  re-commands wandering units but doesn't eliminate them. A separate, more frequent
+  scan (every 2–3 minutes) that merges clusters outside a radius of the factory
+  centroid into nearby survivors could trim persistent stragglers without touching
+  the active combat zone.
+
+---
+
+## CustomZomboid — minor known issues
+
+*(low priority, no active work planned)*
+
+- Night-variant sweep still creates/destroys entities for clusters near players at
+  dusk/dawn (up to 150 per anchor per 60 ticks). Skipping the swap for clusters
+  that are already charging a target (command state = attacking) would avoid
+  unnecessary churn during active combat.
