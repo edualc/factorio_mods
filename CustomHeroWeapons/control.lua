@@ -185,7 +185,8 @@ local function upgrade_gun(player, base_name, new_rank)
             if base == base_name and cur_rank < new_rank then
                 local new_name = "hw-" .. base_name .. "-rank-" .. new_rank
                 if prototypes.item[new_name] then
-                    stack.set_stack({name = new_name, count = 1})
+                    local quality = stack.quality.name
+                    stack.set_stack({name = new_name, count = 1, quality = quality})
                     player.print({"heroweapons.rankup-message", {"item-name." .. base_name}, tostring(new_rank)})
                 end
                 return
@@ -214,9 +215,10 @@ local function upgrade_equipment(player, base_name, pk, new_rank)
                 local new_name = "hw-" .. base_name .. "-rank-" .. new_rank
                 if prototypes.equipment[new_name] then
                     local pos = eq.position
+                    local quality = eq.quality.name
                     local ok = pcall(function()
                         grid.take({equipment = eq})
-                        grid.put({name = new_name, position = pos})
+                        grid.put({name = new_name, position = pos, quality = quality})
                     end)
                     if ok then
                         player.print({"heroweapons.rankup-message", {"equipment-name." .. base_name}, tostring(new_rank)})

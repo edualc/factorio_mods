@@ -44,6 +44,7 @@ local local_replace_turret = function(entity,recipe)
 	local dd = entity.damage_dealt
 	local d = entity.direction
 	local o = entity.orientation
+	local q = entity.quality
 	local was_disabled_by_script = nil
 	pcall(function() was_disabled_by_script = entity.disabled_by_script end)
 
@@ -93,7 +94,7 @@ local local_replace_turret = function(entity,recipe)
 	-- destroy() may return nil in Factorio 2.x instead of true; don't gate on its return value
 	entity.destroy({raise_destroy = true})
 
-	local new_entity = s.create_entity{name=recipe.name, position=p, force = f, direction = d, orientation = o, raise_built = true}
+	local new_entity = s.create_entity{name=recipe.name, position=p, force = f, direction = d, orientation = o, quality = q, raise_built = true}
 	if new_entity == nil then return end
 	new_entity.health = new_entity.max_health
 	new_entity.kills = k

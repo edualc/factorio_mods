@@ -4,7 +4,7 @@ Personal forks of several Factorio mods, updated for compatibility with Factorio
 
 ## Mods
 
-### CustomHeroTurrets `2.1.3`
+### CustomHeroTurrets `2.1.4`
 Turrets that level up based on kills, with a rank insignia overlay and per-rank stat buffs. Works across modded turrets, not just vanilla ones.
 
 **Original mod:** [HeroTurrets](https://mods.factorio.com/mod/HeroTurrets) by **PixelWhipped**
@@ -20,6 +20,9 @@ Turrets that level up based on kills, with a rank insignia overlay and per-rank 
 
 **v2.1.3:**
 - Fixed turrets losing their priority target list on rank-up: the entity swap now reads `priority_targets` (array of `LuaEntityPrototype`) and `ignore_unprioritised_targets` before destroying the old entity, then replays them on the new one via `set_priority_target` — preserves e.g. a rocket turret on Aquilo configured to only shoot medium asteroids
+
+**v2.1.4:**
+- Fixed rank-up resetting a turret's quality tier back to normal: the entity swap creates the higher-rank replacement via `surface.create_entity` without a `quality` field, which defaults to `normal`, so a legendary turret silently lost its quality every time it ranked up. Now reads `entity.quality` before destroying the old entity and passes it to `create_entity` explicitly
 
 ---
 
@@ -183,7 +186,7 @@ Removes placement restrictions for Overgrowth yumako/jellynut soil on Gleba. Pla
 
 ---
 
-### CustomHeroWeapons `1.0.4`
+### CustomHeroWeapons `1.0.5`
 Handheld weapons and power armor equipment that level up through kills, gaining fire rate, range, and damage bonuses at each rank. Includes a new Personal Tesla Defense equipment module.
 
 **Original concept:** New mod (no upstream)
@@ -228,6 +231,9 @@ Handheld weapons and power armor equipment that level up through kills, gaining 
 
 **v1.0.4:**
 - Fixed Personal Tesla Defense armor-grid sprite second layer (tesla orb) not rendering: `ammo-category/tesla.png` is a grayscale+alpha PNG which the Sprite layer system renders as invisible; switched to `tesla-ammo.png` (RGBA) which displays correctly
+
+**v1.0.5:**
+- Fixed rank-up resetting item/equipment quality back to normal: both `upgrade_gun` (`LuaItemStack.set_stack`) and `upgrade_equipment` (`LuaEquipmentGrid.put`) create the higher-rank replacement without ever reading the original's `quality` — both APIs default to `normal` when the field is omitted, so a legendary weapon or equipment piece silently lost its quality tier every time it ranked up. Both now capture `quality` from the original stack/equipment before the swap and pass it through explicitly
 
 ---
 
