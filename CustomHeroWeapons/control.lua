@@ -3,6 +3,7 @@
 -- Storage layout:
 --   storage.heroweapons[player_index][base_weapon_name] = kill_count   (int, guns only)
 --   storage.eq_data[player_index][pos_key] = {base=name, kills=N}     (per equipment grid slot)
+--   storage.equipped_players[player_index][pos_key] = base_name        (all tracked slots currently equipped)
 --
 -- Equipment kills are tracked per armor grid slot while the item is equipped.
 -- On removal the counter is discarded; on re-placement the counter resets to
@@ -240,11 +241,9 @@ local function add_gun_kill(player, base_name)
     if tr > 1 then upgrade_gun(player, base_name, tr) end
 end
 
--- Attribute one kill to the first tracked equipment slot this player has equipped.
--- Each grid slot tracks kills independently via eq_data.
-local function add_equipment_kill(player, base_name)
-    local char = player.character
-    if not (char and char.valid) then return end
+-- Attribute one kill to a specific equipped slot, already chosen by
+-- attribute_equipment_kill for proximity and even distribution across slots.
+local function add_equipment_kill(player, pk, base_name)
     local armor_inv = player.get_inventory(defines.inventory.character_armor)
     if not armor_inv then return end
     local armor = armor_inv[1]
@@ -252,25 +251,31 @@ local function add_equipment_kill(player, base_name)
     local grid = armor.grid
     if not grid then return end
 
-    local pi = player.index
+    local x_str, y_str = pk:match("^(-?%d+),(-?%d+)$")
+    local px, py = tonumber(x_str), tonumber(y_str)
+
     for _, eq in pairs(grid.equipment) do
-        local base, cur_rank = parse_item(eq.name)
-        if base == base_name then
-            local pk = pos_key(eq.position)
-            local kills = get_slot_kills(pi, pk) + 1
-            set_slot_data(pi, pk, base_name, kills)
-            local tr = target_rank(base_name, kills)
-            if tr > cur_rank then upgrade_equipment(player, base_name, pk, tr) end
+        if eq.position.x == px and eq.position.y == py then
+            local base, cur_rank = parse_item(eq.name)
+            if base == base_name then
+                local pi = player.index
+                local kills = get_slot_kills(pi, pk) + 1
+                set_slot_data(pi, pk, base_name, kills)
+                local tr = target_rank(base_name, kills)
+                if tr > cur_rank then upgrade_equipment(player, base_name, pk, tr) end
+            end
             return
         end
     end
 end
 
 -- Rebuild the equipped_players cache entry for one player by scanning their grid.
--- Stores the base equipment name so attribution never needs to touch the grid per-kill.
+-- Stores every tracked slot (pos_key -> base name), not just the first match,
+-- so multiple equipped types/copies are all eligible for kill credit.
 local function refresh_equipped_cache(player)
     storage.equipped_players = storage.equipped_players or {}
     local pi = player.index
+    local slots = nil
     local armor_inv = player.get_inventory(defines.inventory.character_armor)
     if armor_inv then
         local armor = armor_inv[1]
@@ -278,27 +283,30 @@ local function refresh_equipped_cache(player)
             for _, eq in pairs(armor.grid.equipment) do
                 local base = parse_item(eq.name)
                 if base and IS_TRACKED_EQUIPMENT[base] then
-                    storage.equipped_players[pi] = base
-                    return
+                    slots = slots or {}
+                    slots[pos_key(eq.position)] = base
                 end
             end
         end
     end
-    storage.equipped_players[pi] = nil
+    storage.equipped_players[pi] = slots
 end
 
 -- Check all players' personal defense equipment for proximity to a killed
 -- enemy.  Attributes the kill to the closest player with equipment equipped,
--- up to EQUIPMENT_RANGE_SQ distance.
--- Hot path: only arithmetic and table lookups — no inventory or grid API calls.
+-- up to EQUIPMENT_RANGE_SQ distance; among that player's equipped slots,
+-- credits whichever currently has the fewest kills so multiple items (same
+-- or different type) level up evenly instead of one slot hogging every kill.
+-- Hot path: only arithmetic and table lookups — no inventory or grid API calls,
+-- except the single targeted grid lookup once a slot has been chosen.
 local function attribute_equipment_kill(pos, surface)
     if not storage.equipped_players or not next(storage.equipped_players) then return end
 
     local best_player = nil
-    local best_base   = nil
+    local best_slots  = nil
     local best_dist   = EQUIPMENT_RANGE_SQ + 1
 
-    for pi, base in pairs(storage.equipped_players) do
+    for pi, slots in pairs(storage.equipped_players) do
         local player = game.players[pi]
         if not player then goto continue end
         local char = player.character
@@ -308,16 +316,26 @@ local function attribute_equipment_kill(pos, surface)
             local dist_sq = dx * dx + dy * dy
             if dist_sq < best_dist then
                 best_player = player
-                best_base   = base
+                best_slots  = slots
                 best_dist   = dist_sq
             end
         end
         ::continue::
     end
 
-    if best_player then
-        add_equipment_kill(best_player, best_base)
+    if not best_player then return end
+
+    -- Deterministic tie-break on pos_key so all clients pick the same slot.
+    local pi = best_player.index
+    local best_pk, best_base, least_kills = nil, nil, nil
+    for pk, base in pairs(best_slots) do
+        local k = get_slot_kills(pi, pk)
+        if least_kills == nil or k < least_kills or (k == least_kills and pk < best_pk) then
+            best_pk, best_base, least_kills = pk, base, k
+        end
     end
+
+    if best_pk then add_equipment_kill(best_player, best_pk, best_base) end
 end
 
 -- ── Event handlers ────────────────────────────────────────────────────────────

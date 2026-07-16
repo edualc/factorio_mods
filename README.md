@@ -186,7 +186,7 @@ Removes placement restrictions for Overgrowth yumako/jellynut soil on Gleba. Pla
 
 ---
 
-### CustomHeroWeapons `1.0.5`
+### CustomHeroWeapons `1.0.6`
 Handheld weapons and power armor equipment that level up through kills, gaining fire rate, range, and damage bonuses at each rank. Includes a new Personal Tesla Defense equipment module.
 
 **Original concept:** New mod (no upstream)
@@ -234,6 +234,9 @@ Handheld weapons and power armor equipment that level up through kills, gaining 
 
 **v1.0.5:**
 - Fixed rank-up resetting item/equipment quality back to normal: both `upgrade_gun` (`LuaItemStack.set_stack`) and `upgrade_equipment` (`LuaEquipmentGrid.put`) create the higher-rank replacement without ever reading the original's `quality` — both APIs default to `normal` when the field is omitted, so a legendary weapon or equipment piece silently lost its quality tier every time it ranked up. Both now capture `quality` from the original stack/equipment before the swap and pass it through explicitly
+
+**v1.0.6:**
+- Fixed equipped defense equipment only ever leveling up one type, and only one instance of that type: `storage.equipped_players` cached a single base equipment name per player (whichever tracked item the grid scan found first), so kills near a player with e.g. both Personal Laser Defense and Personal Tesla Defense equipped were only ever credited to the first-found type — the other never accumulated kills. Separately, `add_equipment_kill` always credited the first matching grid slot it found, so two copies of the same equipment did not level up independently as documented. The cache now stores every tracked slot per player (`pos_key -> base_name`), and kill attribution picks whichever equipped slot on the closest player currently has the fewest kills, so multiple equipped items (same or different type) level up evenly
 
 ---
 
