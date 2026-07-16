@@ -100,3 +100,11 @@ Before committing any change, update @README.md to reflect what was changed.
 - The mod's header version (e.g. `### CustomHeroTurrets \`2.1.2\``) must match `info.json`
 - If the change spans multiple mods, add a versioned section to each affected mod's entry
 - Keep entries factual and specific (what changed and why), matching the tone and level of detail of the existing bullets
+
+---
+
+## Local install / deployment
+
+Building via `deploy.sh` is always safe to run freely — it only writes to `deploy/` inside the repo.
+
+Before copying anything from `deploy/` into the live Factorio mods folder (`%APPDATA%\Factorio\mods` / `~/.factorio/mods`), ask whether the user is currently playing. Installing over a running game can disrupt an active session. Only copy after an explicit go-ahead.
