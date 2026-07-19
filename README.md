@@ -164,7 +164,7 @@ Makes all robots and belts completely immune to fire damage.
 
 ---
 
-### CustomLavafill `2.1.2`
+### CustomLavafill `2.1.3`
 Allows placing lava just like landfill.
 
 **Original mod:** [Lavafill](https://mods.factorio.com/mod/lavafill) by **Junsung Cho**
@@ -176,6 +176,9 @@ Allows placing lava just like landfill.
 **v2.1.2:**
 - Fixed lavafill failing to place on tiles occupied by a resource entity (ore, oil, etc.): resource entities get the engine-default `collision_mask = {layers={resource=true}}` unless overridden, and `place_as_tile.condition` only permits overriding the collision layers it explicitly lists. The condition previously listed only `lava_tile`, so lavafill could be placed on existing lava but never on ore patches. Added `resource` to the condition layers
 - Added `control.lua` as a belt-and-suspenders fix for the same issue, covering both placement paths: direct player placement destroys the resource on `on_pre_build` (before the engine's own tile placement check runs), and blueprint/construction-robot placement — which always goes through a tile-ghost first, since robots have no pre-build hook of their own — destroys the resource as soon as the lavafill tile-ghost is created
+
+**v2.1.3:**
+- Fixed direct player placement of lavafill still failing on resource-covered tiles despite v2.1.2: `on_pre_build` fires before the engine resolves the *current* build attempt, so this click's placement validity already appears to be decided by the time the handler runs — destroying the resource there only unblocked the next click on the same tile, not the one in progress. `on_pre_build` now places the tile itself via `LuaSurface.set_tiles` (which also drops any colliding entity) and consumes the item by hand whenever a resource is found, instead of relying on the native `place_as_tile` follow-up. The blueprint/construction-robot path is unaffected — robots build on a later tick, well after the resource was already removed at ghost-creation time
 
 ---
 

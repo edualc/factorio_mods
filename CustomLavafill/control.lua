@@ -1,29 +1,36 @@
--- Belt-and-suspenders for placing lavafill on resource-covered tiles.
+-- Placing lavafill on resource-covered tiles.
 --
--- place_as_tile.condition now lists "resource" (see prototypes/item.lua), which
--- should be enough on its own, but resource entities are destructible objects,
--- not just a collision layer - if anything about that placement path still
--- rejects the tile in practice, the fix is to remove the obstacle before the
--- engine's own placement check runs rather than debug the condition further.
+-- place_as_tile.condition lists "resource" (see prototypes/item.lua), which
+-- should be enough on its own, but in practice it still isn't: on_pre_build
+-- fires before the engine resolves the *current* build attempt, so whether
+-- this exact click can place a tile already appears to be decided by the
+-- time the event handler runs. Destroying the resource there only clears the
+-- way for the *next* click on the same tile, not the one in progress.
 --
 -- Two placement paths need covering:
---   1. Player places lavafill directly (no ghost stage) - on_pre_build fires
---      before the engine's own tile placement check, so destroying the
---      resource here lets placement succeed immediately afterward.
+--   1. Player places lavafill directly (no ghost stage): since we can't
+--      trust the native place_as_tile follow-up to see our change in time,
+--      place the tile ourselves via LuaSurface.set_tiles (which also drops
+--      any colliding entity on its own) and consume the item by hand,
+--      instead of destroying the resource and hoping the built-in system
+--      picks it up afterward.
 --   2. Blueprint / construction-robot placement always goes through a
---      tile-ghost first - robots have no "pre-build" hook of their own, so
---      the resource is cleared as soon as the ghost is created instead. By
---      the time a robot (or a player finishing the ghost by hand) actually
---      builds it, the tile is already clear.
+--      tile-ghost first, and the robot's actual build happens on a later
+--      tick - by then the resource we destroy at ghost-creation time is long
+--      gone, so the native placement resolves normally with no timing issue.
 local LAVAFILL_ITEM = "lavafill"
 local LAVAFILL_TILE = "lava"
 
-local function clear_resources_in_area(surface, position)
+local function find_resources_in_area(surface, position)
     local area = {
         {position.x - 0.5, position.y - 0.5},
         {position.x + 0.5, position.y + 0.5},
     }
-    for _, resource in pairs(surface.find_entities_filtered({area = area, type = "resource"})) do
+    return surface.find_entities_filtered({area = area, type = "resource"})
+end
+
+local function clear_resources_in_area(surface, position)
+    for _, resource in pairs(find_resources_in_area(surface, position)) do
         resource.destroy()
     end
 end
@@ -35,7 +42,17 @@ script.on_event(defines.events.on_pre_build, function(event)
     local cursor = player.cursor_stack
     if not (cursor and cursor.valid_for_read and cursor.name == LAVAFILL_ITEM) then return end
 
-    clear_resources_in_area(player.surface, event.position)
+    local surface = player.surface
+    local resources = find_resources_in_area(surface, event.position)
+    if #resources == 0 then return end -- nothing blocking; let native placement handle it as usual
+
+    for _, resource in pairs(resources) do
+        resource.destroy()
+    end
+
+    local tile_position = {x = math.floor(event.position.x), y = math.floor(event.position.y)}
+    surface.set_tiles({{name = LAVAFILL_TILE, position = tile_position}}, true, true, true, true)
+    cursor.count = cursor.count - 1
 end)
 
 local function on_tile_ghost_built(event)
