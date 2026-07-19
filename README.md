@@ -175,7 +175,7 @@ Allows placing lava just like landfill.
 
 **v2.1.2:**
 - Fixed lavafill failing to place on tiles occupied by a resource entity (ore, oil, etc.): resource entities get the engine-default `collision_mask = {layers={resource=true}}` unless overridden, and `place_as_tile.condition` only permits overriding the collision layers it explicitly lists. The condition previously listed only `lava_tile`, so lavafill could be placed on existing lava but never on ore patches. Added `resource` to the condition layers
-- Added `control.lua` as a belt-and-suspenders fix for the same issue: on `on_pre_build`, any resource entity under the cursor is destroyed before the engine's own tile placement check runs, so placement succeeds regardless of the exact `place_as_tile.condition` behavior
+- Added `control.lua` as a belt-and-suspenders fix for the same issue, covering both placement paths: direct player placement destroys the resource on `on_pre_build` (before the engine's own tile placement check runs), and blueprint/construction-robot placement — which always goes through a tile-ghost first, since robots have no pre-build hook of their own — destroys the resource as soon as the lavafill tile-ghost is created
 
 ---
 

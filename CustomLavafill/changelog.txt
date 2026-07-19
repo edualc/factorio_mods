@@ -8,9 +8,12 @@ Date: 2026-07-19
       it explicitly lists. The condition previously listed only lava_tile, so it could place lava
       onto existing lava tiles but never onto ore patches. Added resource to the condition layers.
     - Belt-and-suspenders fix for the same issue: added control.lua to destroy any resource entity
-      under the cursor on on_pre_build when placing lavafill, before the engine's own tile placement
-      check runs. Removing the obstacle outright guarantees placement succeeds regardless of the
-      exact place_as_tile.condition behavior.
+      under the target tile before placement, guaranteeing placement succeeds regardless of the
+      exact place_as_tile.condition behavior. Covers both placement paths: direct player placement
+      (destroys the resource on on_pre_build, before the engine's own check runs) and blueprint /
+      construction-robot placement, which always goes through a tile-ghost first (destroys the
+      resource as soon as the lavafill tile-ghost is created, since robots have no pre-build hook
+      of their own).
 ---------------------------------------------------------------------------------------------------
 Version: 2.1.1
 Date: 2026-07-13
