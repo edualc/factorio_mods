@@ -7,6 +7,10 @@ Date: 2026-07-19
       prototype overrides it, and place_as_tile.condition only allows overriding collision layers
       it explicitly lists. The condition previously listed only lava_tile, so it could place lava
       onto existing lava tiles but never onto ore patches. Added resource to the condition layers.
+    - Belt-and-suspenders fix for the same issue: added control.lua to destroy any resource entity
+      under the cursor on on_pre_build when placing lavafill, before the engine's own tile placement
+      check runs. Removing the obstacle outright guarantees placement succeeds regardless of the
+      exact place_as_tile.condition behavior.
 ---------------------------------------------------------------------------------------------------
 Version: 2.1.1
 Date: 2026-07-13
