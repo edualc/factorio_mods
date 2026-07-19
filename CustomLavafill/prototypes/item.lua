@@ -11,7 +11,12 @@ data:extend(
             place_as_tile = {
                 result = "lava",
                 condition_size = 1,
-                condition = {layers = {lava_tile = true}}
+                -- "resource" must be included alongside lava_tile: resource entities
+                -- (ore, oil, etc.) get the engine-default collision_mask
+                -- {layers={resource=true}} (data/core/lualib/collision-mask-defaults.lua),
+                -- which blocks tile placement unless explicitly permitted here. Without it,
+                -- lavafill can only be placed on already-existing lava, never on ore patches.
+                condition = {layers = {lava_tile = true, resource = true}}
             }
         }
     }
