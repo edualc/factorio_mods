@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.1.2
+Date: 2026-07-19
+  Bugfixes:
+    - Fixed lavafill failing to place on tiles with a resource entity on them (ore, oil, etc.):
+      resource entities get the engine-default collision_mask {layers={resource=true}} unless a
+      prototype overrides it, and place_as_tile.condition only allows overriding collision layers
+      it explicitly lists. The condition previously listed only lava_tile, so it could place lava
+      onto existing lava tiles but never onto ore patches. Added resource to the condition layers.
+---------------------------------------------------------------------------------------------------
 Version: 2.1.1
 Date: 2026-07-13
   Bugfixes:
