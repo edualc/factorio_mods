@@ -193,6 +193,19 @@ Removes placement restrictions for Overgrowth yumako/jellynut soil on Gleba. Pla
 
 ---
 
+### CustomInfiniteOresAndOil `2.2.4`
+Prevents ore patches from running out and keeps oil at its initial yield. Works with modded resources.
+
+**Original mod:** [Infinite Ores and Oil](https://mods.factorio.com/mod/InfiniteOresAndOil) by **indiset**
+
+**Changes from original:**
+- Fixed finite resources (iron/copper/coal/stone/uranium ore, calcite, tungsten ore, scrap, lithium brine, and modded ores) not actually being infinite: the original `data-final-fixes.lua` only set `infinite_depletion_amount = 0`, which only has an effect on resources that already have `infinite = true` in vanilla (crude oil and the Space Age geysers/vents) - every other resource was untouched by that line. For those, the mod instead relied on a `control.lua` `on_resource_depleted` handler that refilled a depleted entity's amount to a single counter shared across every resource type and patch on the entire map, incremented by only 1 per depletion event anywhere - so patches refilled to trivially small amounts (1, 2, 3, ...) that were immediately exhausted again. This is why scrap and Aquilo resources (calcite, tungsten ore, lithium brine) in particular never felt infinite despite their settings being enabled
+- Finite resources whose setting is enabled are now converted to `infinite = true` with `infinite_depletion_amount = 0` directly in `data-final-fixes.lua` - the same mechanism vanilla already uses natively for crude oil - so they never run out and never lose yield, instead of being refilled reactively after depletion. The old `on_resource_depleted` refill logic in `control.lua` was removed entirely, since converted resources' amount no longer decreases from mining at all
+- Since the actual richness a specific ore patch was generated with isn't known at the data stage, `control.lua` pins each converted resource entity's yield to exactly its own current amount (`LuaEntity::initial_amount`) on init, on mod-configuration-changed, and as new chunks are generated, instead of a shared placeholder value
+- Per-resource settings (`refill-coal`, `refill-iron`, ..., `refill-modded-ores`) are now startup settings instead of runtime-global, since `data-final-fixes.lua` only has access to `settings.startup`; toggling one now requires a mod settings reload (or a new save) to take effect
+
+---
+
 ### CustomHeroWeapons `1.0.6`
 Handheld weapons and power armor equipment that level up through kills, gaining fire rate, range, and damage bonuses at each rank. Includes a new Personal Tesla Defense equipment module.
 
