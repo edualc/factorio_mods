@@ -1,4 +1,17 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.2.5
+Date: 2026-07-20
+  Bugfixes:
+    - Fixed converted resources (ores, scrap, lithium brine) mining at wildly inconsistent, inflated
+      rates instead of the vanilla constant rate. Yield percentage for an infinite resource scales
+      with amount/normal, and a patch's actual generated richness (tens to hundreds of thousands) is
+      nowhere near the shared `normal` placeholder set in data-final-fixes.lua - pinning
+      initial_amount to the patch's own amount (as done in 2.2.4) left that ratio wildly above 100%
+      and inconsistent from patch to patch. control.lua now overwrites the entity's actual `amount`
+      down to match the prototype's `normal` value (also writable) instead, pinning the ratio to
+      exactly 1 (100%) for every entity regardless of which field the engine reads as the live
+      reference - restoring a flat, unchanged mining rate identical to the original finite behaviour.
+---------------------------------------------------------------------------------------------------
 Version: 2.2.4
 Date: 2026-07-20
   Changes:

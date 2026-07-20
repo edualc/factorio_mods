@@ -164,7 +164,7 @@ Makes all robots and belts completely immune to fire damage.
 
 ---
 
-### CustomLavafill `2.1.3`
+### CustomLavafill `2.1.4`
 Allows placing lava just like landfill.
 
 **Original mod:** [Lavafill](https://mods.factorio.com/mod/lavafill) by **Junsung Cho**
@@ -180,6 +180,9 @@ Allows placing lava just like landfill.
 **v2.1.3:**
 - Fixed direct player placement of lavafill still failing on resource-covered tiles despite v2.1.2: `on_pre_build` fires before the engine resolves the *current* build attempt, so this click's placement validity already appears to be decided by the time the handler runs — destroying the resource there only unblocked the next click on the same tile, not the one in progress. `on_pre_build` now places the tile itself via `LuaSurface.set_tiles` (which also drops any colliding entity) and consumes the item by hand whenever a resource is found, instead of relying on the native `place_as_tile` follow-up. The blueprint/construction-robot path is unaffected — robots build on a later tick, well after the resource was already removed at ghost-creation time
 
+**v2.1.4:**
+- Fixed offshore pumps sometimes not starting when placed together with lavafill in the same blueprint, requiring the pump to be manually removed and re-placed: an offshore pump resolves its connection to the fluid tile beneath it once, at creation time, and construction robots can finish building the pump before the lava tile underneath it is actually built, leaving it permanently unconnected. `control.lua` now listens for the lava tile itself being built (`on_robot_built_tile` / `on_player_built_tile` / `on_space_platform_built_tile`) and, if an offshore pump is already sitting on that tile, destroys and recreates it (preserving position, direction, force, and quality) so it re-resolves its connection against the now-correct tile
+
 ---
 
 ### CustomGlebaSoilAnywhere `2.1.1`
@@ -193,7 +196,7 @@ Removes placement restrictions for Overgrowth yumako/jellynut soil on Gleba. Pla
 
 ---
 
-### CustomInfiniteOresAndOil `2.2.4`
+### CustomInfiniteOresAndOil `2.2.5`
 Prevents ore patches from running out and keeps oil at its initial yield. Works with modded resources.
 
 **Original mod:** [Infinite Ores and Oil](https://mods.factorio.com/mod/InfiniteOresAndOil) by **indiset**
@@ -203,6 +206,9 @@ Prevents ore patches from running out and keeps oil at its initial yield. Works 
 - Finite resources whose setting is enabled are now converted to `infinite = true` with `infinite_depletion_amount = 0` directly in `data-final-fixes.lua` - the same mechanism vanilla already uses natively for crude oil - so they never run out and never lose yield, instead of being refilled reactively after depletion. The old `on_resource_depleted` refill logic in `control.lua` was removed entirely, since converted resources' amount no longer decreases from mining at all
 - Since the actual richness a specific ore patch was generated with isn't known at the data stage, `control.lua` pins each converted resource entity's yield to exactly its own current amount (`LuaEntity::initial_amount`) on init, on mod-configuration-changed, and as new chunks are generated, instead of a shared placeholder value
 - Per-resource settings (`refill-coal`, `refill-iron`, ..., `refill-modded-ores`) are now startup settings instead of runtime-global, since `data-final-fixes.lua` only has access to `settings.startup`; toggling one now requires a mod settings reload (or a new save) to take effect
+
+**v2.2.5:**
+- Fixed converted resources (ores, scrap, lithium brine) mining at wildly inflated, per-patch-inconsistent rates instead of the vanilla constant rate: an infinite resource's yield percentage scales with `amount`/`normal`, and a patch's actual generated richness (tens to hundreds of thousands) is nowhere near the shared `normal` placeholder set in `data-final-fixes.lua`, so pinning `initial_amount` to the patch's own amount (as done in 2.2.4) left that ratio far above 100% and inconsistent from patch to patch. `control.lua` now overwrites the entity's actual `amount` (also writable) down to match the prototype's `normal` value instead, pinning the ratio to exactly 100% for every entity regardless of which field the engine reads as the live reference - restoring a flat, unchanged mining rate identical to the original finite behaviour
 
 ---
 
