@@ -1,0 +1,30 @@
+---------------------------------------------------------------------------------------------------
+Version: 2.2.4
+Date: 2026-07-20
+  Changes:
+    - Forked as CustomInfiniteOresAndOil.
+  Bugfixes:
+    - Fixed finite resources (iron/copper/coal/stone/uranium ore, calcite, tungsten ore, scrap,
+      lithium brine, and modded ores) not actually being infinite. The original mod's
+      data-final-fixes.lua only set infinite_depletion_amount = 0, which does nothing unless a
+      resource already has infinite = true (true in vanilla only for crude oil and the Space Age
+      geysers/vents). For every other resource it instead relied on a control.lua on_resource_depleted
+      handler that refilled a depleted entity to a single counter shared across every resource type
+      and patch on the entire map, incremented by only 1 per depletion event anywhere - so patches
+      refilled to trivially small amounts (1, 2, 3, ...) that were immediately exhausted again. This
+      is why scrap and Aquilo resources (calcite, tungsten ore, lithium brine) in particular never
+      felt infinite. Finite resources whose setting is enabled now get infinite = true,
+      infinite_depletion_amount = 0, and a placeholder minimum/normal set directly in
+      data-final-fixes.lua - the same mechanism vanilla already uses natively for crude oil - so they
+      never run out and never lose yield, instead of being refilled reactively after depletion.
+    - Since the real richness a specific ore patch was generated with isn't known at the data stage,
+      control.lua now pins each converted resource entity's yield to exactly its own current amount
+      (via LuaEntity::initial_amount) on init, on mod-configuration-changed, and as new chunks are
+      generated - so yield reflects that patch's actual richness instead of an arbitrary shared
+      placeholder value.
+    - The per-resource enable/disable settings (refill-coal, refill-iron, ..., refill-modded-ores)
+      are now startup settings instead of runtime-global, since data-final-fixes.lua (where the
+      infinite/finite decision is now made) only has access to settings.startup. Toggling one now
+      requires a mod settings reload (or a new save) to take effect, same as any other startup
+      setting.
+---------------------------------------------------------------------------------------------------

@@ -1,0 +1,13 @@
+{
+  "name": "CustomInfiniteOresAndOil",
+  "version": "2.2.4",
+  "factorio_version": "2.1",
+  "title": "Custom Infinite Ores And Oil",
+  "author": "indiset",
+  "homepage": "",
+  "description": "Prevents ore patches from running out\nKeeps oil at its initial yield\nUPS optimized for megabases\nCustomizable mod settings\nWorks with modded resources",
+  "dependencies": [
+    "base >= 2.1",
+    "?space-age >= 2.1"
+  ]
+}
