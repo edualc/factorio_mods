@@ -260,6 +260,16 @@ Handheld weapons and power armor equipment that level up through kills, gaining 
 
 ---
 
+### CustomTreesOnPavement `1.0.0`
+Lets agricultural towers plant Nauvis tree seeds on landfill, stone brick, concrete, hazard concrete, refined concrete and refined hazard concrete, in addition to the natural tiles vanilla allows.
+
+**Original concept:** New mod (no upstream)
+
+**v1.0.0:**
+- Initial release: the seed's planting restriction is stored on the `tree-plant` entity as `autoplace.tile_restriction` (the list shown in the Factoriopedia), not on the seed item; `data-updates.lua` appends the eight paved/landfill tile names to that list. Useful for pollution absorption in heavily paved bases with landfilled lakes, where no plantable natural tiles remain. Only the Nauvis tree is affected; yumako and jellynut keep their soil restrictions
+
+---
+
 ## Credits
 
 All original mods and their concepts belong to their respective authors. These forks exist solely for personal use to bring the mods up to date with Factorio 2.1 and to add quality-of-life changes.

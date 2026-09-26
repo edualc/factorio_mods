@@ -1,0 +1,6 @@
+---------------------------------------------------------------------------------------------------
+Version: 1.0.0
+Date: 2026-09-26
+  Changes:
+    - Initial release: Nauvis tree seeds can be planted on landfill, stone brick, concrete,
+      hazard concrete, refined concrete and refined hazard concrete.

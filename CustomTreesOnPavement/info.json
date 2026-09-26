@@ -1,0 +1,13 @@
+{
+  "name": "CustomTreesOnPavement",
+  "version": "1.0.0",
+  "factorio_version": "2.1",
+  "title": "CustomTreesOnPavement",
+  "author": "Claude Lehmann",
+  "homepage": "",
+  "description": "Lets agricultural towers plant Nauvis tree seeds on landfill, stone brick, concrete and hazard concrete.",
+  "dependencies": [
+    "base >= 2.1",
+    "space-age >= 2.1"
+  ]
+}
