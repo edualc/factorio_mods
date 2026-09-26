@@ -71,3 +71,45 @@ script.on_event(defines.events.script_raised_revive, on_tile_ghost_built, TILE_G
 if defines.events.on_space_platform_built_entity then
     script.on_event(defines.events.on_space_platform_built_entity, on_tile_ghost_built, TILE_GHOST_FILTER)
 end
+
+-- Offshore pumps resolve their connection to the fluid tile beneath them once,
+-- at creation. When a blueprint places a pump and a lavafill tile together,
+-- construction robots can finish the pump before the lava tile underneath it
+-- is actually built, leaving it permanently unconnected (fixed today by
+-- manually removing and re-placing the pump). Once the tile itself is
+-- confirmed built, recreate any pump already sitting on it so it re-resolves
+-- its connection against the now-correct tile.
+local function refresh_offshore_pumps(surface, tile_position)
+    local area = {
+        {tile_position.x - 0.5, tile_position.y - 0.5},
+        {tile_position.x + 0.5, tile_position.y + 0.5},
+    }
+    for _, pump in pairs(surface.find_entities_filtered({area = area, type = "offshore-pump"})) do
+        local name = pump.name
+        local position = pump.position
+        local direction = pump.direction
+        local force = pump.force
+        local quality = pump.quality
+        pump.destroy()
+        surface.create_entity({
+            name = name,
+            position = position,
+            direction = direction,
+            force = force,
+            quality = quality,
+        })
+    end
+end
+
+local function on_lava_tile_built(event)
+    if event.tile.name ~= LAVAFILL_TILE then return end
+    for _, tile_and_position in pairs(event.tiles) do
+        refresh_offshore_pumps(game.surfaces[event.surface_index], tile_and_position.position)
+    end
+end
+
+script.on_event(defines.events.on_robot_built_tile, on_lava_tile_built)
+script.on_event(defines.events.on_player_built_tile, on_lava_tile_built)
+if defines.events.on_space_platform_built_tile then
+    script.on_event(defines.events.on_space_platform_built_tile, on_lava_tile_built)
+end

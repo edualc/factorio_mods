@@ -1,4 +1,16 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.1.4
+Date: 2026-07-20
+  Bugfixes:
+    - Fixed offshore pumps sometimes not starting when placed together with lavafill in the same
+      blueprint, requiring the player to remove and re-place the pump manually. An offshore pump
+      resolves its connection to the fluid tile beneath it once, at creation time; construction
+      robots can finish building the pump before the lava tile underneath it is actually built,
+      leaving it permanently unconnected. control.lua now listens for the lava tile itself being
+      built (on_robot_built_tile / on_player_built_tile / on_space_platform_built_tile) and, if an
+      offshore pump is already sitting on that tile, destroys and recreates it (preserving position,
+      direction, force, and quality) so it re-resolves its connection against the now-correct tile.
+---------------------------------------------------------------------------------------------------
 Version: 2.1.3
 Date: 2026-07-19
   Bugfixes:

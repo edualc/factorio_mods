@@ -8,12 +8,20 @@ local function is_converted_resource(entity)
   return prototype.infinite_resource and prototype.minimum_resource_amount == CONVERTED_MINIMUM
 end
 
--- Pins this entity's yield at 100% of its own current amount, since the
--- prototype's shared `normal` value (set in data-final-fixes.lua) can't know
--- the actual richness any specific map/patch was generated with
+-- Forces this entity's yield to a flat 100%, matching vanilla's constant
+-- per-swing mining rate. Yield% scales with amount/normal, and a patch's
+-- actual generated richness (tens to hundreds of thousands) is nowhere near
+-- the shared `normal` placeholder set in data-final-fixes.lua, so pinning
+-- `initial_amount` to the patch's own amount still left yield scaling wildly
+-- per patch. Overwriting `amount` itself down to `normal` (also writable)
+-- pins the ratio to exactly 1 regardless of which field the engine actually
+-- reads as the live reference, and is safe to do on an already-placed entity
+-- since it doesn't destroy/recreate it (mining drills keep their target)
 local function pin_yield(entity)
   if entity.valid and is_converted_resource(entity) then
-    entity.initial_amount = entity.amount
+    local normal = entity.prototype.normal_resource_amount
+    entity.amount = normal
+    entity.initial_amount = normal
   end
 end
 
